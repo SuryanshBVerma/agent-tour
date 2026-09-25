@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { GitService } from "./gitService";
 import { TourPlayer } from "./tourPlayer";
 import { TourStore } from "./tourStore";
 import { TourNode, TourTree } from "./tourTree";
@@ -15,7 +16,7 @@ export interface AgentTourApi {
 export async function activate(context: vscode.ExtensionContext): Promise<AgentTourApi> {
   const log = vscode.window.createOutputChannel("Agent Tour", { log: true });
   const store = new TourStore(log);
-  const player = new TourPlayer(log);
+  const player = new TourPlayer(log, new GitService(log));
   const trigger = new TriggerHandler(store, player, log);
   const tree = new TourTree(store, player);
 
@@ -33,6 +34,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<AgentT
     vscode.commands.registerCommand("agentTour.next", () => player.next()),
     vscode.commands.registerCommand("agentTour.previous", () => player.previous()),
     vscode.commands.registerCommand("agentTour.showCard", () => player.showCard()),
+    vscode.commands.registerCommand("agentTour.toggleDiff", () => player.toggleDiff()),
     vscode.commands.registerCommand("agentTour.stop", () => player.stop()),
   );
   void vscode.commands.executeCommand("setContext", "agentTour.active", false);

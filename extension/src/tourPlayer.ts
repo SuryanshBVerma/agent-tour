@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
 import { formatDelta, resolveStep } from "./anchorResolver";
 import { ControlBar } from "./controlBar";
+import { BaseResolver, GitService } from "./gitService";
 import { isInsideAfterSymlinks, resolveWorkspaceFile } from "./paths";
 import { DimMode, SpotlightOptions, SpotlightRenderer } from "./spotlightRenderer";
 import { InlineCard } from "./inlineCard";
+import { openStepDiff } from "./stepDiff";
 import { StepCard, renderCard } from "./stepCard";
 import { StepStatus, Tour } from "./types";
 
@@ -26,6 +28,8 @@ export interface PlayerSnapshot {
   decorated: Record<string, number>;
   /** 0-based line the inline card is anchored on; undefined when none is shown. */
   inlineCardLine?: number;
+  /** True while the current step is shown as a side-by-side diff against the tour's base ref. */
+  diffMode?: boolean;
 }
 
 export type CardStyle = "inline" | "hover";
@@ -47,11 +51,18 @@ export class TourPlayer implements vscode.Disposable {
   /** Resolution result of each step visited in the current tour, by index. */
   private statuses = new Map<number, StepStatus>();
   private startLine: number | undefined;
+  /** Sticky per-tour view: steps open as a diff until toggled off. */
+  private diffMode = false;
+  /** At most one fallback notice per tour, so a run of undiffable steps does not spam. */
+  private diffFallbackNoticeShown = false;
 
   /** Fires when the tour, step or step status changes. */
   readonly onDidChange = this.changeEmitter.event;
 
-  constructor(private readonly log: vscode.LogOutputChannel) {
+  constructor(
+    private readonly log: vscode.LogOutputChannel,
+    private git: BaseResolver = new GitService(log),
+  ) {
     this.renderer = new SpotlightRenderer(readSpotlightOptions());
     this.card = new StepCard(log);
     this.subscriptions.push(
@@ -85,6 +96,7 @@ export class TourPlayer implements vscode.Disposable {
           stepStatus: this.statuses.get(this.state.index),
           startLine: this.startLine,
           inlineCardLine: this.inlineCard.anchor()?.line,
+          diffMode: this.diffMode,
         };
     }
   }
@@ -94,6 +106,11 @@ export class TourPlayer implements vscode.Disposable {
     return this.state.status === "playing" && this.state.tour.id === tourId ? this.statuses.get(index) : undefined;
   }
 
+  /** Test seam: swap the Git resolver so player tests need no real repository. */
+  setBaseResolver(resolver: BaseResolver): void {
+    this.git = resolver;
+  }
+
   async start(tour: Tour, folder: vscode.Uri, index = 0): Promise<void> {
     if (tour.steps.length === 0) {
       void vscode.window.showWarningMessage(`Tour "${tour.title}" has no steps.`);
@@ -101,6 +118,8 @@ export class TourPlayer implements vscode.Disposable {
     }
     this.log.info(`Starting tour "${tour.id}" (${tour.steps.length} steps) in ${folder.fsPath}`);
     this.statuses = new Map();
+    this.diffMode = false;
+    this.diffFallbackNoticeShown = false;
     this.state = { status: "playing", tour, folder, index: 0 };
     // goto must claim its navigation token synchronously: awaiting anything first would
     // let a navigation made in between (tree click, keybinding) be overwritten by step 1.
@@ -150,6 +169,16 @@ export class TourPlayer implements vscode.Disposable {
     }
   }
 
+  /** Switches the current and following steps between the spotlighted editor and a diff. */
+  async toggleDiff(): Promise<void> {
+    if (this.state.status !== "playing") {
+      return;
+    }
+    this.diffMode = !this.diffMode;
+    this.log.info(`Diff view ${this.diffMode ? "on" : "off"}`);
+    await this.goto(this.state.index);
+  }
+
   async stop(): Promise<void> {
     if (this.state.status !== "playing") {
       return;
@@ -159,6 +188,8 @@ export class TourPlayer implements vscode.Disposable {
     this.state = { status: "idle" };
     this.statuses = new Map();
     this.startLine = undefined;
+    this.diffMode = false;
+    this.diffFallbackNoticeShown = false;
     this.renderer.clear();
     this.card.clear();
     this.inlineCard.clear();
@@ -166,6 +197,31 @@ export class TourPlayer implements vscode.Disposable {
     this.changeEmitter.fire();
     await vscode.commands.executeCommand("setContext", "agentTour.active", false);
     await hideHover(this.log);
+  }
+
+  /**
+   * Shows a step in the current view: a diff against the base ref in diff mode, otherwise the
+   * spotlighted editor. A step that cannot be diffed falls back to the editor.
+   */
+  private async showStep(
+    folder: vscode.Uri,
+    uri: vscode.Uri,
+    document: vscode.TextDocument,
+    tour: Tour,
+    index: number,
+  ): Promise<vscode.TextEditor> {
+    if (this.diffMode) {
+      const result = await openStepDiff(this.git, folder, uri, tour, index);
+      if ("editor" in result) {
+        return result.editor;
+      }
+      this.log.info(`Step ${index + 1}: showing the editor instead of a diff; ${result.fallback}`);
+      if (!this.diffFallbackNoticeShown) {
+        this.diffFallbackNoticeShown = true;
+        void vscode.window.showInformationMessage(`Agent Tour: the diff view is unavailable (${result.fallback}).`);
+      }
+    }
+    return vscode.window.showTextDocument(document, { preview: false, preserveFocus: false });
   }
 
   async goto(index: number, { reveal = true } = {}): Promise<void> {
@@ -194,7 +250,7 @@ export class TourPlayer implements vscode.Disposable {
       this.renderer.clear();
       this.card.clear();
       this.inlineCard.clear();
-      this.controlBar.update(tour, index, "missing");
+      this.controlBar.update(tour, index, "missing", this.diffMode);
       this.changeEmitter.fire();
       await hideHover(this.log);
       void vscode.window.showWarningMessage(
@@ -203,7 +259,7 @@ export class TourPlayer implements vscode.Disposable {
       return;
     }
 
-    const editor = await vscode.window.showTextDocument(document, { preview: false, preserveFocus: false });
+    const editor = await this.showStep(folder, uri, document, tour, index);
     if (navigation !== this.navigation) {
       return;
     }
@@ -229,7 +285,7 @@ export class TourPlayer implements vscode.Disposable {
       this.inlineCard.clear();
       this.card.set(uri, range, parts);
     }
-    this.controlBar.update(tour, index, resolution.status);
+    this.controlBar.update(tour, index, resolution.status, this.diffMode);
     this.changeEmitter.fire();
 
     const cursor = quietPosition(document.lineAt(range.start.line));

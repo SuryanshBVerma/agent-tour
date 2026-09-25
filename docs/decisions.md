@@ -3,6 +3,59 @@
 Record non-obvious decisions and deviations from `implementation-plan.md`, newest first.
 Include the date, the decision, why it was made, and the alternatives considered.
 
+## 2026-09-25: Per-step side-by-side Git diff (v0.1.2)
+- **The diff is on demand, not automatic.** `agentTour.toggleDiff` (Alt+D, a status-bar item,
+  and the Command Palette) switches the current step between the spotlighted editor and a
+  native diff of the working file against `tour.baseRef`. The mode is sticky until toggled
+  off or the tour stops, and defaults to off. Rationale: an automatic diff per step opens a
+  tab per file and takes the editor over, which is what the `autoStart: "prompt"` decision
+  already avoided. `start()` resets the mode; `update()` (the agent rewriting the tour) keeps
+  it. The card footer stays navigation-only, so its trust surface is unchanged.
+- **Native diff, not a webview.** `vscode.diff` plus the built-in Git extension API
+  (`API.toGitUri`, `Repository.diffWith`, `getObjectDetails`, `getCommit`) gives the two
+  columns, change gutters and synced scrolling for free, with no network and no shell. The
+  before-side is `toGitUri(file, baseRef)`; the change list is cached per repository and ref.
+- **`Change.originalUri` is not the base version (bug fix).** The first cut passed
+  `change.originalUri` straight to `vscode.diff`, so both columns showed the working file. In
+  the Git extension, `originalUri` is the working path for a modification and the pre-rename
+  path for a rename; the base content only exists behind `toGitUri(path, ref)`. The Git
+  extension's own multi-diff code does `toGitUri(change.originalUri, ref)` for renames and
+  `toGitUri(change.uri, ref)` otherwise, and `baseFileForChange` mirrors that (and returns
+  undefined for an added file). `baseFileForChange` is exported so the mapping is unit-tested
+  without a repository.
+- **Side-by-side cannot be forced.** `vscode.diff`'s options converter
+  (`extHostTypeConverters.TextEditorOpenOptions.from`) forwards only `preview`, `preserveFocus`,
+  `selection`, `background`/`override` and `viewColumn`; `renderSideBySide` is dropped. The
+  layout therefore follows `diffEditor.renderSideBySide` (default side-by-side). We do not
+  mutate user settings to force it.
+- **`vscode.diff` returns void.** Verified in `extHostApiCommands.ts` (`ApiCommandResult.Void`),
+  so the modified-side editor is found after the command: `activeTextEditor` when it matches,
+  else any visible editor for the file, with a short bounded retry. Only the modified side is
+  spotlighted; the original side relies on the diff editor's own highlighting.
+- **Repo-root-relative paths.** `getObjectDetails`/`diffWith` take paths relative to the
+  repository root, while a step's `file` is relative to the workspace folder (which may be a
+  subfolder). `repositoryRelativePath` converts, and rejects anything outside the repository.
+- **Refs are validated, then resolved.** An agent authors `baseRef`, so `isValidBaseRef`
+  rejects empty, over-long, whitespace/control and option-like refs; the ref is then resolved
+  with `getCommit` and anything that fails falls back. No shell is involved, so the checks are
+  defence in depth rather than the only barrier.
+- **A step that cannot be diffed keeps the tour going.** Added files (`added`), a missing repo,
+  a disabled/unavailable Git extension and bad refs all fall back to the spotlighted editor
+  with one notice per tour and an output log line. The mode stays on, so the next diffable step
+  opens a diff again. Deleted files cannot be steps, because the validator requires the file to
+  exist.
+- **Active-editor tracking moved into `SpotlightRenderer`.** `redrawVisible()` used to decorate
+  every visible editor with the step's URI; with a diff open that also hit the plain editor. It
+  now keeps the editor the step was drawn in and only adopts a replacement when that editor is
+  gone, which keeps the reopen regression test passing.
+- **Test strategy: an injected resolver.** The fixture workspace is not a git repository and
+  sits inside this repo, so a real repository in tests is neither deterministic nor clean.
+  `BaseResolver` is the player's only Git dependency and `setBaseResolver` is a test seam; the
+  diff tests use a fake returning a `file:` base. The real Git path is covered by manual checks
+  on a dogfood project. The automated diff test confirms `vscode.diff` opens the tab and the
+  modified side is decorated; whether the inline/hover card renders *inside* a diff is still a
+  manual check.
+
 ## 2026-09-25: v0.1.1: minimum VS Code lowered from 1.138 to 1.90
 v0.1.0 declared `engines.vscode: ^1.138.0`, only because that matched the newest
 `@types/vscode`, not because of any API it needs. A colleague on VS Code 1.125.1 couldn't install

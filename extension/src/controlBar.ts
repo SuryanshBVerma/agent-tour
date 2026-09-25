@@ -6,6 +6,7 @@ import { KIND_LABELS, StepStatus, Tour } from "./types";
  * navigation must stay reachable here.
  */
 export class ControlBar implements vscode.Disposable {
+  private readonly diff: vscode.StatusBarItem;
   private readonly previous: vscode.StatusBarItem;
   private readonly label: vscode.StatusBarItem;
   private readonly next: vscode.StatusBarItem;
@@ -13,6 +14,7 @@ export class ControlBar implements vscode.Disposable {
 
   constructor() {
     const priority = 1000;
+    this.diff = vscode.window.createStatusBarItem("agentTour.diff", vscode.StatusBarAlignment.Left, priority + 4);
     this.previous = vscode.window.createStatusBarItem("agentTour.previous", vscode.StatusBarAlignment.Left, priority + 3);
     this.label = vscode.window.createStatusBarItem("agentTour.label", vscode.StatusBarAlignment.Left, priority + 2);
     this.next = vscode.window.createStatusBarItem("agentTour.next", vscode.StatusBarAlignment.Left, priority + 1);
@@ -21,6 +23,7 @@ export class ControlBar implements vscode.Disposable {
     for (const item of this.items()) {
       item.name = "Agent Tour";
     }
+    this.diff.command = "agentTour.toggleDiff";
     this.previous.text = "$(chevron-left)";
     this.previous.tooltip = "Previous step (Alt+[)";
     this.previous.command = "agentTour.previous";
@@ -31,7 +34,7 @@ export class ControlBar implements vscode.Disposable {
     this.stop.command = "agentTour.stop";
   }
 
-  update(tour: Tour, index: number, status: StepStatus): void {
+  update(tour: Tour, index: number, status: StepStatus, diffMode: boolean): void {
     const step = tour.steps[index];
     const last = index === tour.steps.length - 1;
     const problem = status === "stale" || status === "missing";
@@ -44,6 +47,8 @@ export class ControlBar implements vscode.Disposable {
           ? `${tour.title}. This step's code has changed since the tour was written. Click to show the step card (Alt+H).`
           : `${tour.title}. Click to show the step card (Alt+H).`;
     this.label.backgroundColor = problem ? new vscode.ThemeColor("statusBarItem.warningBackground") : undefined;
+    this.diff.text = diffMode ? "$(diff-modified)" : "$(diff)";
+    this.diff.tooltip = diffMode ? "Hide the side-by-side diff (Alt+D)" : "Show this step as a side-by-side diff (Alt+D)";
     this.next.text = last ? "$(check)" : "$(chevron-right)";
     this.next.tooltip = last ? "Finish tour (Alt+])" : "Next step (Alt+])";
     if (index > 0) {
@@ -51,6 +56,7 @@ export class ControlBar implements vscode.Disposable {
     } else {
       this.previous.hide();
     }
+    this.diff.show();
     this.label.show();
     this.next.show();
     this.stop.show();
@@ -69,6 +75,6 @@ export class ControlBar implements vscode.Disposable {
   }
 
   private items(): vscode.StatusBarItem[] {
-    return [this.previous, this.label, this.next, this.stop];
+    return [this.diff, this.previous, this.label, this.next, this.stop];
   }
 }
