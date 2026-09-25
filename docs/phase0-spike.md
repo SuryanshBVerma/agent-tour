@@ -1,22 +1,22 @@
 # Phase 0 Spike: Checklist and Results
 
 Goal: decide go/no-go for the native-editor approach (plan section 6, Phase 0).
-The spike plays one hardcoded 5-step tour (`extension/src/spikeTour.ts`) over
-`extension/test/fixtures/spike-workspace`. It covers all four step kinds, two same-file
+The spike originally hardcoded its 5-step tour. Since Phase 1 the same tour is loaded from
+`extension/test/fixtures/sample-workspace/.agent-tours/2026-09-25-rate-limiting.json`. It covers all four step kinds, two same-file
 step changes, and a cross-file jump.
 
 ## How to run
 1. Open `D:\Projects\code-tour` in VS Code.
-2. Press F5 and choose **Run Agent Tour (spike workspace)**. A second window, the
+2. Press F5 and choose **Run Agent Tour (sample workspace)**. A second window, the
    Extension Development Host, opens with the fixture workspace.
-3. In that window, run **Agent Tour: Start Spike Tour** from the Command Palette.
+3. In that window, run **Agent Tour: Start Tour...** from the Command Palette and pick "Add rate limiting to public API".
 4. Open **Output → Agent Tour** to see the log (step changes, URI receipt timestamps,
    anchor warnings).
 
 Automated tests: `cd extension && npm test` (downloads VS Code 1.138.0 into
 `extension/.vscode-test/` on first run).
 
-## Automated checks (passing, 26 tests, VS Code 1.138.0)
+## Automated checks (26 tests at the end of Phase 0; the Phase 1 suite covers more)
 | Check | Test |
 |---|---|
 | Every step opens the right file with the cursor on its start line | `player.test.ts` |
@@ -46,7 +46,7 @@ Automated tests: `cd extension && npm test` (downloads VS Code 1.138.0 into
 Command for check 10:
 
 ```bash
-code --open-url "vscode://agent-tour.agent-tour/start?id=spike"
+code --open-url "vscode://agent-tour.agent-tour/start?id=2026-09-25-rate-limiting"
 ```
 
 Record how long delivery takes (compare the log timestamp with when you pressed Enter),

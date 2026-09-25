@@ -18,12 +18,14 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 ## Commands (run in `extension/`)
 - `npm run compile` builds with tsc into `out/`.
 - `npm test` runs mocha tests in VS Code 1.138.0 (`.vscode-test.mjs`) against
-  `test/fixtures/spike-workspace`.
-- To try it manually, press F5 and choose "Run Agent Tour (spike workspace)" from the repo root.
+  `test/fixtures/sample-workspace`. The tests write and delete `.agent-tours/watch-test.json` there.
+- To try it manually, press F5 and choose "Run Agent Tour (sample workspace)" from the repo root.
 
 ## Status
-Phase 0 spike: the code is done, and the manual checks in `docs/phase0-spike.md` are
-pending. `TourStore`, `AnchorResolver`, `TourTree` and the skill are not started yet.
+- Phase 0: the code is done, and the manual checks in `docs/phase0-spike.md` are pending.
+- Phase 1 (core): done. Schema, TourStore and watcher, auto-start, and the Start Tour
+  quick pick are in place.
+- Next is Phase 2: AnchorResolver, TourTree, and more Workspace Trust handling.
 
 ## Tour contract (summary)
 - Lines are 1-based and inclusive. `file` is workspace-relative; reject absolute paths and `..`.

@@ -18,6 +18,8 @@ export interface PlayerSnapshot {
   total?: number;
   /** Whether the current step's anchor was found at its declared start line. */
   anchorMatched?: boolean;
+  /** Decorated range count per visible document path; empty after cleanup. */
+  decorated: Record<string, number>;
 }
 
 /** Delay before showing the card so the editor has finished revealing the range. */
@@ -48,13 +50,15 @@ export class TourPlayer implements vscode.Disposable {
   }
 
   snapshot(): PlayerSnapshot {
+    const decorated = Object.fromEntries(this.renderer.appliedRanges());
     switch (this.state.status) {
       case "idle":
-        return { status: "idle" };
+        return { status: "idle", decorated };
       case "ended":
-        return { status: "ended", tourId: this.state.tour.id };
+        return { status: "ended", tourId: this.state.tour.id, decorated };
       case "playing":
         return {
+          decorated,
           status: "playing",
           tourId: this.state.tour.id,
           index: this.state.index,
@@ -73,6 +77,20 @@ export class TourPlayer implements vscode.Disposable {
     this.state = { status: "playing", tour, folder, index: 0 };
     await vscode.commands.executeCommand("setContext", "agentTour.active", true);
     await this.goto(0);
+  }
+
+  /**
+   * Swaps in a rewritten version of the tour that is playing (e.g. the agent fixed it)
+   * and redraws the current step, clamped to the new step count.
+   */
+  async update(tour: Tour): Promise<void> {
+    if (this.state.status !== "playing" || this.state.tour.id !== tour.id) {
+      return;
+    }
+    this.log.info(`Tour "${tour.id}" changed on disk; reloading`);
+    const index = Math.min(this.state.index, tour.steps.length - 1);
+    this.state = { ...this.state, tour, index };
+    await this.goto(index, { reveal: false });
   }
 
   async next(): Promise<void> {

@@ -1,13 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import type { AgentTourApi } from "../src/extension";
-import { SPIKE_TOUR } from "../src/spikeTour";
-
-async function api(): Promise<AgentTourApi> {
-  const extension = vscode.extensions.getExtension<AgentTourApi>("agent-tour.agent-tour");
-  assert.ok(extension, "extension not found");
-  return extension.activate();
-}
+import { SAMPLE_ID, SAMPLE_TOUR, api, resetEditor } from "./helpers";
 
 async function hoverText(uri: vscode.Uri, position: vscode.Position): Promise<string> {
   const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
@@ -21,18 +14,17 @@ async function hoverText(uri: vscode.Uri, position: vscode.Position): Promise<st
     .join("\n");
 }
 
-describe("TourPlayer (spike tour)", function () {
-  afterEach(async () => {
-    await vscode.commands.executeCommand("agentTour.stop");
-    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
-  });
+const start = () => vscode.commands.executeCommand("agentTour.start", SAMPLE_ID);
+
+describe("TourPlayer", () => {
+  afterEach(resetEditor);
 
   it("walks every step, opening the right file with anchors matching", async () => {
     const { player } = await api();
-    await vscode.commands.executeCommand("agentTour.spike.start");
+    await start();
 
-    for (let i = 0; i < SPIKE_TOUR.steps.length; i++) {
-      const step = SPIKE_TOUR.steps[i];
+    for (let i = 0; i < SAMPLE_TOUR.steps.length; i++) {
+      const step = SAMPLE_TOUR.steps[i];
       const snapshot = player.snapshot();
       assert.strictEqual(snapshot.status, "playing");
       assert.strictEqual(snapshot.index, i);
@@ -40,29 +32,29 @@ describe("TourPlayer (spike tour)", function () {
 
       const editor = vscode.window.activeTextEditor;
       assert.ok(editor, "no active editor");
-      assert.ok(
-        editor.document.uri.path.endsWith(step.file),
-        `step ${i + 1} opened ${editor.document.uri.path}`,
-      );
+      assert.ok(editor.document.uri.path.endsWith(step.file), `step ${i + 1} opened ${editor.document.uri.path}`);
       assert.strictEqual(editor.selection.active.line, step.range.start - 1);
+      assert.ok((snapshot.decorated[editor.document.uri.path] ?? 0) > 0, `step ${i + 1} not decorated`);
 
-      if (i < SPIKE_TOUR.steps.length - 1) {
+      if (i < SAMPLE_TOUR.steps.length - 1) {
         await vscode.commands.executeCommand("agentTour.next");
       }
     }
 
     await vscode.commands.executeCommand("agentTour.next");
-    assert.strictEqual(player.snapshot().status, "ended");
+    const ended = player.snapshot();
+    assert.strictEqual(ended.status, "ended");
+    assert.deepStrictEqual(ended.decorated, {}, "decorations left after finishing");
   });
 
   it("serves the card only inside the current step while active", async () => {
     const { player } = await api();
-    await vscode.commands.executeCommand("agentTour.spike.start");
+    await start();
     const uri = vscode.window.activeTextEditor!.document.uri;
-    const step = SPIKE_TOUR.steps[0];
+    const step = SAMPLE_TOUR.steps[0];
 
     const inside = await hoverText(uri, new vscode.Position(step.range.start - 1, 0));
-    assert.ok(inside.includes(`Step 1 of ${SPIKE_TOUR.steps.length}`), inside);
+    assert.ok(inside.includes(`Step 1 of ${SAMPLE_TOUR.steps.length}`), inside);
     assert.ok(inside.includes(step.title));
 
     const outside = await hoverText(uri, new vscode.Position(0, 0));
@@ -76,7 +68,7 @@ describe("TourPlayer (spike tour)", function () {
 
   it("navigates back across files and ignores previous on step 1", async () => {
     const { player } = await api();
-    await vscode.commands.executeCommand("agentTour.spike.start");
+    await start();
     await vscode.commands.executeCommand("agentTour.previous");
     assert.strictEqual(player.snapshot().index, 0);
 
@@ -89,14 +81,51 @@ describe("TourPlayer (spike tour)", function () {
 
   it("keeps the latest step when navigation is triggered rapidly", async () => {
     const { player } = await api();
-    await vscode.commands.executeCommand("agentTour.spike.start");
+    await start();
     await Promise.all([
       vscode.commands.executeCommand("agentTour.next"),
       vscode.commands.executeCommand("agentTour.next"),
       vscode.commands.executeCommand("agentTour.next"),
     ]);
+    assert.strictEqual(player.snapshot().index, 3);
+    assert.ok(vscode.window.activeTextEditor!.document.uri.path.endsWith(SAMPLE_TOUR.steps[3].file));
+  });
+
+  it("removes decorations from the previous file on a cross-file step", async () => {
+    const { player } = await api();
+    await start();
+    await player.goto(2);
+    const rateLimit = vscode.window.activeTextEditor!.document;
+    await player.goto(3);
+    // Keep the previous file visible beside the new one so stale decorations would show.
+    await vscode.window.showTextDocument(rateLimit, { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true });
+    const decorated = player.snapshot().decorated;
+    assert.strictEqual(decorated[rateLimit.uri.path], undefined, JSON.stringify(decorated));
+  });
+
+  it("redraws after the step file is closed and reopened, and cleans up on stop", async () => {
+    const { player } = await api();
+    await start();
+    await player.goto(1);
+    const uri = vscode.window.activeTextEditor!.document.uri;
+
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    assert.deepStrictEqual(player.snapshot().decorated, {});
+
+    await vscode.window.showTextDocument(uri);
+    assert.ok((player.snapshot().decorated[uri.path] ?? 0) > 0, "not redrawn after reopen");
+
+    await vscode.commands.executeCommand("agentTour.stop");
+    assert.deepStrictEqual(player.snapshot().decorated, {}, "decorations left after stop");
+  });
+
+  it("clears the old tour when a new start replaces it", async () => {
+    const { player } = await api();
+    await start();
+    await player.goto(4);
+    await start();
     const snapshot = player.snapshot();
-    assert.strictEqual(snapshot.index, 3);
-    assert.ok(vscode.window.activeTextEditor!.document.uri.path.endsWith(SPIKE_TOUR.steps[3].file));
+    assert.strictEqual(snapshot.index, 0);
+    assert.deepStrictEqual(Object.keys(snapshot.decorated).length, 1, JSON.stringify(snapshot.decorated));
   });
 });

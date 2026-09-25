@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "id": "invalid-schema",
+  "title": "Bad kind, reversed range, extra field",
+  "summary": "Fixture: must be rejected.",
+  "baseRef": "HEAD",
+  "createdBy": "fixture",
+  "extra": true,
+  "steps": [
+    {
+      "file": "src/router.ts",
+      "range": { "start": 12, "end": 11 },
+      "anchor": "router.use",
+      "kind": "bug",
+      "title": "Bad step",
+      "description": ""
+    }
+  ]
+}

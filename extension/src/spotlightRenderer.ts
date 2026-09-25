@@ -39,6 +39,7 @@ export class SpotlightRenderer implements vscode.Disposable {
   private dimType: vscode.TextEditorDecorationType | undefined;
   private gutterType: vscode.TextEditorDecorationType | undefined;
   private current: Spotlight | undefined;
+  private applied = new Map<vscode.TextEditor, Map<vscode.TextEditorDecorationType, number>>();
 
   constructor(private options: SpotlightOptions) {
     this.createStaticTypes();
@@ -78,12 +79,13 @@ export class SpotlightRenderer implements vscode.Disposable {
   clear(): void {
     for (const editor of vscode.window.visibleTextEditors) {
       for (const type of this.allTypes()) {
-        editor.setDecorations(type, []);
+        this.set(editor, type, []);
       }
     }
     this.gutterType?.dispose();
     this.gutterType = undefined;
     this.current = undefined;
+    this.applied.clear();
   }
 
   dispose(): void {
@@ -97,14 +99,41 @@ export class SpotlightRenderer implements vscode.Disposable {
     }
     const { range, kind } = this.current;
     for (const [typeKind, type] of this.targetTypes) {
-      editor.setDecorations(type, typeKind === kind ? [range] : []);
+      this.set(editor, type, typeKind === kind ? [range] : []);
     }
     if (this.gutterType) {
-      editor.setDecorations(this.gutterType, [new vscode.Range(range.start, range.start)]);
+      this.set(editor, this.gutterType, [new vscode.Range(range.start, range.start)]);
     }
     if (this.dimType) {
-      editor.setDecorations(this.dimType, dimRanges(editor.document, range));
+      this.set(editor, this.dimType, dimRanges(editor.document, range));
     }
+  }
+
+  /**
+   * Number of decorated ranges this renderer currently has in each visible editor,
+   * keyed by document path. Used by tests to prove cleanup; the API cannot read
+   * decorations back.
+   */
+  appliedRanges(): Map<string, number> {
+    const result = new Map<string, number>();
+    for (const editor of vscode.window.visibleTextEditors) {
+      const perType = this.applied.get(editor);
+      const total = perType ? [...perType.values()].reduce((sum, n) => sum + n, 0) : 0;
+      if (total > 0) {
+        result.set(editor.document.uri.path, (result.get(editor.document.uri.path) ?? 0) + total);
+      }
+    }
+    return result;
+  }
+
+  private set(editor: vscode.TextEditor, type: vscode.TextEditorDecorationType, ranges: vscode.Range[]): void {
+    editor.setDecorations(type, ranges);
+    let perType = this.applied.get(editor);
+    if (!perType) {
+      perType = new Map();
+      this.applied.set(editor, perType);
+    }
+    perType.set(type, ranges.length);
   }
 
   private createStaticTypes(): void {
@@ -138,6 +167,15 @@ export class SpotlightRenderer implements vscode.Disposable {
   }
 
   private disposeTypes(): void {
+    // Disposing a type removes its decorations from every editor.
+    for (const perType of this.applied.values()) {
+      for (const type of this.targetTypes.values()) {
+        perType.delete(type);
+      }
+      if (this.dimType) {
+        perType.delete(this.dimType);
+      }
+    }
     for (const type of this.targetTypes.values()) {
       type.dispose();
     }
