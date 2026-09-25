@@ -1,0 +1,4 @@
+# Normalize line endings; tour line numbers and anchors must not drift across OSes.
+* text=auto eol=lf
+*.png binary
+*.vsix binary
