@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { isSafeRelativePath } from "./paths";
+import { isSafeRelativePath } from "./pathRules";
 import { validateTour } from "./tourValidation";
 import { Tour, TOUR_ID_PATTERN } from "./types";
 

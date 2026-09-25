@@ -2,7 +2,9 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "outDir": "out",
     "rootDir": ".",
     "sourceMap": true,
@@ -15,6 +17,13 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true
   },
-  "include": ["src", "test", "schema/*.json"],
-  "exclude": ["test/fixtures"]
+  "include": [
+    "src",
+    "test",
+    "skill-src",
+    "schema/*.json"
+  ],
+  "exclude": [
+    "test/fixtures"
+  ]
 }

@@ -1,6 +1,6 @@
 import Ajv, { ErrorObject } from "ajv";
 import schema from "../schema/tour.schema.json";
-import { isSafeRelativePath } from "./paths";
+import { isSafeRelativePath } from "./pathRules";
 import { Tour } from "./types";
 
 export type ValidationResult =

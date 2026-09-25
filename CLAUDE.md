@@ -20,6 +20,11 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 - `npm test` runs mocha tests in VS Code 1.138.0 (`.vscode-test.mjs`) against
   `test/fixtures/sample-workspace`. The tests write and delete `.agent-tours/watch-test.json` there.
 - To try it manually, press F5 and choose "Run Agent Tour (sample workspace)" from the repo root.
+- `npm run compile` also rebuilds the skill's generated files (the validator bundle and the
+  schema copy); commit them together with source changes. `npm run check:skill` fails if
+  they are stale.
+- `npm run test:skill` runs the validator tests (`node --test`, no VS Code needed).
+- `npm run package` builds `agent-tour.vsix`.
 
 ## Status
 - Phase 0: the code is done, and the manual checks in `docs/phase0-spike.md` are pending.
@@ -28,7 +33,10 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 - Phase 2 (robustness): done. AnchorResolver with relocated, stale and missing steps, the
   TourTree in the Explorer, and Workspace Trust restricted settings are in place. Manual
   checks are in `docs/manual-checks.md`.
-- Next is Phase 3: the `code-tour` skill (SKILL.md, validator, examples) in `skill/code-tour/`.
+- Phase 3 (skill): done. `skill/code-tour/` holds SKILL.md, the bundled validator
+  `scripts/validate-tour.mjs`, and an example. The validator's source is
+  `extension/skill-src/`.
+- Next is Phase 4: dogfooding on real projects.
 
 ## Tour contract (summary)
 - Lines are 1-based and inclusive. `file` is workspace-relative; reject absolute paths and `..`.

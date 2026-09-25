@@ -24,3 +24,7 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Left behind only if a test run is killed
+extension/test/fixtures/outside-*/
+extension/test/fixtures/sample-workspace/linked

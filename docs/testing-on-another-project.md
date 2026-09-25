@@ -1,6 +1,6 @@
 # Testing Agent Tour on Another Project
 
-This guide is for trying the extension on a real repository before the Phase 3 skill exists.
+This guide is for trying the extension and the `code-tour` skill on a real repository.
 
 ## 1. Build and install
 ```bash
@@ -24,24 +24,23 @@ the same version).
 Tours live in `<project>/.agent-tours/<id>.json`. You'll probably want to add `.agent-tours/`
 to that project's `.gitignore`.
 
-Until the `code-tour` skill is written, ask Claude Code in the other project to write one
-by pasting this prompt after it finishes a multi-file change:
+Install the `code-tour` skill so Claude Code writes and validates tours itself. Choose one:
 
-> Write a guided code tour of the changes you just made, for review in VS Code.
-> 1. Run `git diff --unified=0 <base>` and `git status` (include untracked files).
->    Record the base ref.
-> 2. Order the steps as a narrative: entry point, then data/control flow, then tests and
->    config. Group tightly related hunks into one step. Aim for 5–12 steps of 3–40 lines.
->    Fold trivial changes (renames, imports) into the summary.
-> 3. Each description uses **What:** / **Why:** (alternatives considered) / **Watch for:**
->    (edge cases, assumptions, uncertainty). Use `kind: "risk"` for low-confidence code.
-> 4. Write `.agent-tours/<id>.json`. The id is lowercase letters, digits and hyphens (for
->    example `2026-09-25-add-caching`), and the file name must equal the id.
->    Format: `{ "version": 1, "id", "title", "summary", "baseRef", "createdBy": "claude-code",
->    "steps": [{ "file" (workspace-relative), "range": { "start", "end" } (1-based,
->    inclusive), "anchor" (exact text copied from the first meaningful line of the range),
->    "kind" ("change" | "context" | "risk" | "decision"), "title", "description" (Markdown) }] }`.
-> 5. Re-read each file and confirm that every step's `range.start` line contains its `anchor`.
+- **For all your projects** (user level):
+
+```bash
+mkdir -p ~/.claude/skills && cp -r D:/Projects/code-tour/skill/code-tour ~/.claude/skills/
+```
+
+- **For one project** (can be committed so the team gets it): copy the folder to
+  `<project>/.claude/skills/code-tour/` instead.
+
+To update it later, copy it again. The folder is self-contained (`SKILL.md`, the bundled
+validator, the schema and an example), and the validator needs only `node` >= 18.
+
+Then, in the other project, either let Claude Code use it after a multi-file change, or ask
+for one directly ("give me a tour of what you changed"). Asking directly also starts it,
+via `code --open-url`.
 
 The installed extension gives schema completion and error squiggles when you open the tour
 file in VS Code. Invalid files show up in **Explorer → Agent Tours** with their errors.
