@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+extension/out/
+extension/dist/
+*.vsix
+
+# VS Code test harness downloads
+.vscode-test/
+
+# Logs and OS files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Local environment
+.env
+.env.*
+
+# Tours generated while dogfooding in this repo
+.agent-tours/
+
+# Claude Code local settings
+.claude/settings.local.json
