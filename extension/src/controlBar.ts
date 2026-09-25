@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { KIND_LABELS, Tour } from "./types";
+import { KIND_LABELS, StepStatus, Tour } from "./types";
 
 /**
  * Persistent status bar controls. The hover card dismisses easily, so progress and
@@ -31,11 +31,19 @@ export class ControlBar implements vscode.Disposable {
     this.stop.command = "agentTour.stop";
   }
 
-  update(tour: Tour, index: number): void {
+  update(tour: Tour, index: number, status: StepStatus): void {
     const step = tour.steps[index];
     const last = index === tour.steps.length - 1;
-    this.label.text = `$(map) ${index + 1}/${tour.steps.length} · ${KIND_LABELS[step.kind]}: ${step.title}`;
-    this.label.tooltip = `${tour.title}. Click to show the step card (Alt+H).`;
+    const problem = status === "stale" || status === "missing";
+    const icon = problem ? "$(warning)" : "$(map)";
+    this.label.text = `${icon} ${index + 1}/${tour.steps.length} · ${KIND_LABELS[step.kind]}: ${step.title}`;
+    this.label.tooltip =
+      status === "missing"
+        ? `${step.file} no longer exists. Use Next or Previous to continue.`
+        : status === "stale"
+          ? `${tour.title}. This step's code has changed since the tour was written. Click to show the step card (Alt+H).`
+          : `${tour.title}. Click to show the step card (Alt+H).`;
+    this.label.backgroundColor = problem ? new vscode.ThemeColor("statusBarItem.warningBackground") : undefined;
     this.next.text = last ? "$(check)" : "$(chevron-right)";
     this.next.tooltip = last ? "Finish tour (Alt+])" : "Next step (Alt+])";
     if (index > 0) {

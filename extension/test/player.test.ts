@@ -28,7 +28,7 @@ describe("TourPlayer", () => {
       const snapshot = player.snapshot();
       assert.strictEqual(snapshot.status, "playing");
       assert.strictEqual(snapshot.index, i);
-      assert.strictEqual(snapshot.anchorMatched, true, `anchor for step ${i + 1}`);
+      assert.strictEqual(snapshot.stepStatus, "exact", `anchor for step ${i + 1}`);
 
       const editor = vscode.window.activeTextEditor;
       assert.ok(editor, "no active editor");
@@ -89,6 +89,17 @@ describe("TourPlayer", () => {
     ]);
     assert.strictEqual(player.snapshot().index, 3);
     assert.ok(vscode.window.activeTextEditor!.document.uri.path.endsWith(SAMPLE_TOUR.steps[3].file));
+  });
+
+  it("keeps a navigation made while start() is still in flight", async () => {
+    // Regression: start() used to await setContext before claiming its navigation, so
+    // this goto(2) was overwritten by the delayed goto(0).
+    const { player, store } = await api();
+    const loaded = store.get(SAMPLE_ID)!;
+    const starting = player.start(loaded.tour, loaded.folder);
+    const jumping = player.goto(2);
+    await Promise.all([starting, jumping]);
+    assert.strictEqual(player.snapshot().index, 2);
   });
 
   it("removes decorations from the previous file on a cross-file step", async () => {

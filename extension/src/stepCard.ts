@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { Resolution, formatDelta } from "./anchorResolver";
 import { KIND_LABELS, StepKind, Tour, TourStep } from "./types";
 
 /** The only commands a step card may invoke. Anything else in card Markdown is inert. */
@@ -56,7 +57,7 @@ export class StepCard implements vscode.HoverProvider, vscode.Disposable {
   }
 }
 
-export function renderCard(tour: Tour, index: number, stale: boolean): vscode.MarkdownString {
+export function renderCard(tour: Tour, index: number, resolution: Resolution): vscode.MarkdownString {
   const step: TourStep = tour.steps[index];
   const total = tour.steps.length;
   const md = new vscode.MarkdownString(undefined, true);
@@ -64,8 +65,10 @@ export function renderCard(tour: Tour, index: number, stale: boolean): vscode.Ma
   md.supportHtml = false;
 
   md.appendMarkdown(`**Step ${index + 1} of ${total}** · ${KIND_ICONS[step.kind]} ${KIND_LABELS[step.kind]}`);
-  if (stale) {
-    md.appendMarkdown(" · $(alert) _anchor not found at these lines_");
+  if (resolution.status === "stale") {
+    md.appendMarkdown(" · $(alert) **Stale:** _code changed since the tour was written; showing the original lines_");
+  } else if (resolution.status === "relocated") {
+    md.appendMarkdown(` · $(arrow-swap) _moved ${formatDelta(resolution.delta)} since the tour was written_`);
   }
   md.appendMarkdown("\n\n");
   md.appendMarkdown(`### ${escapeInline(step.title)}\n\n`);

@@ -23,11 +23,16 @@ export async function api(): Promise<AgentTourApi> {
 }
 
 /** Polls until `predicate` holds, failing after `timeoutMs`. */
-export async function waitFor(predicate: () => boolean, timeoutMs: number, what: string): Promise<number> {
+export async function waitFor(
+  predicate: () => boolean,
+  timeoutMs: number,
+  what: string,
+  diagnose?: () => string,
+): Promise<number> {
   const started = Date.now();
   while (!predicate()) {
     if (Date.now() - started > timeoutMs) {
-      assert.fail(`timed out after ${timeoutMs} ms waiting for ${what}`);
+      assert.fail(`timed out after ${timeoutMs} ms waiting for ${what}${diagnose ? `; ${diagnose()}` : ""}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }

@@ -1,23 +1,26 @@
 import * as vscode from "vscode";
+import { formatDelta, resolveStep } from "./anchorResolver";
 import { ControlBar } from "./controlBar";
 import { resolveWorkspaceFile } from "./paths";
 import { DimMode, SpotlightOptions, SpotlightRenderer } from "./spotlightRenderer";
 import { StepCard, renderCard } from "./stepCard";
-import { Tour } from "./types";
+import { StepStatus, Tour } from "./types";
 
 export type PlayerState =
   | { status: "idle" }
   | { status: "playing"; tour: Tour; folder: vscode.Uri; index: number }
   | { status: "ended"; tour: Tour };
 
-/** Snapshot for tests and diagnostics. */
+/** Snapshot for tests, the tour tree and diagnostics. */
 export interface PlayerSnapshot {
   status: PlayerState["status"];
   tourId?: string;
   index?: number;
   total?: number;
-  /** Whether the current step's anchor was found at its declared start line. */
-  anchorMatched?: boolean;
+  /** How the current step mapped onto the file as it is now. */
+  stepStatus?: StepStatus;
+  /** 0-based line the current step starts on after anchor resolution. */
+  startLine?: number;
   /** Decorated range count per visible document path; empty after cleanup. */
   decorated: Record<string, number>;
 }
@@ -32,14 +35,21 @@ export class TourPlayer implements vscode.Disposable {
   private readonly card: StepCard;
   private readonly controlBar = new ControlBar();
   private readonly subscriptions: vscode.Disposable[] = [];
+  private readonly changeEmitter = new vscode.EventEmitter<void>();
   /** Incremented per navigation so a slow `goto` never renders over a newer one. */
   private navigation = 0;
-  private anchorMatched: boolean | undefined;
+  /** Resolution result of each step visited in the current tour, by index. */
+  private statuses = new Map<number, StepStatus>();
+  private startLine: number | undefined;
+
+  /** Fires when the tour, step or step status changes. */
+  readonly onDidChange = this.changeEmitter.event;
 
   constructor(private readonly log: vscode.LogOutputChannel) {
     this.renderer = new SpotlightRenderer(readSpotlightOptions());
     this.card = new StepCard(log);
     this.subscriptions.push(
+      this.changeEmitter,
       vscode.window.onDidChangeVisibleTextEditors(() => this.renderer.redrawVisible()),
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration("agentTour.dimMode") || event.affectsConfiguration("agentTour.dimOpacity")) {
@@ -63,20 +73,29 @@ export class TourPlayer implements vscode.Disposable {
           tourId: this.state.tour.id,
           index: this.state.index,
           total: this.state.tour.steps.length,
-          anchorMatched: this.anchorMatched,
+          stepStatus: this.statuses.get(this.state.index),
+          startLine: this.startLine,
         };
     }
   }
 
-  async start(tour: Tour, folder: vscode.Uri): Promise<void> {
+  /** Status of a visited step of the playing tour; undefined if not visited or not playing. */
+  stepStatus(tourId: string, index: number): StepStatus | undefined {
+    return this.state.status === "playing" && this.state.tour.id === tourId ? this.statuses.get(index) : undefined;
+  }
+
+  async start(tour: Tour, folder: vscode.Uri, index = 0): Promise<void> {
     if (tour.steps.length === 0) {
       void vscode.window.showWarningMessage(`Tour "${tour.title}" has no steps.`);
       return;
     }
     this.log.info(`Starting tour "${tour.id}" (${tour.steps.length} steps) in ${folder.fsPath}`);
+    this.statuses = new Map();
     this.state = { status: "playing", tour, folder, index: 0 };
-    await vscode.commands.executeCommand("setContext", "agentTour.active", true);
-    await this.goto(0);
+    // goto must claim its navigation token synchronously: awaiting anything first would
+    // let a navigation made in between (tree click, keybinding) be overwritten by step 1.
+    void vscode.commands.executeCommand("setContext", "agentTour.active", true);
+    await this.goto(Math.min(Math.max(index, 0), tour.steps.length - 1));
   }
 
   /**
@@ -89,6 +108,7 @@ export class TourPlayer implements vscode.Disposable {
     }
     this.log.info(`Tour "${tour.id}" changed on disk; reloading`);
     const index = Math.min(this.state.index, tour.steps.length - 1);
+    this.statuses = new Map();
     this.state = { ...this.state, tour, index };
     await this.goto(index, { reveal: false });
   }
@@ -101,6 +121,7 @@ export class TourPlayer implements vscode.Disposable {
       const tour = this.state.tour;
       await this.stop();
       this.state = { status: "ended", tour };
+      this.changeEmitter.fire();
       void vscode.window.showInformationMessage(`Tour complete: ${tour.title}`);
       return;
     }
@@ -126,10 +147,12 @@ export class TourPlayer implements vscode.Disposable {
     this.log.info(`Stopped tour "${this.state.tour.id}" at step ${this.state.index + 1}`);
     this.navigation++;
     this.state = { status: "idle" };
-    this.anchorMatched = undefined;
+    this.statuses = new Map();
+    this.startLine = undefined;
     this.renderer.clear();
     this.card.clear();
     this.controlBar.hide();
+    this.changeEmitter.fire();
     await vscode.commands.executeCommand("setContext", "agentTour.active", false);
     await hideHover(this.log);
   }
@@ -147,35 +170,45 @@ export class TourPlayer implements vscode.Disposable {
     this.state = { ...this.state, index };
 
     const uri = resolveWorkspaceFile(folder, step.file);
-    if (!uri) {
-      this.log.error(`Step ${index + 1}: rejected path "${step.file}" (outside workspace)`);
-      void vscode.window.showErrorMessage(`Step ${index + 1} points outside the workspace and was skipped.`);
+    const document = uri ? await openDocument(uri) : undefined;
+    if (navigation !== this.navigation) {
+      return;
+    }
+    if (!uri || !document) {
+      // Keep the tour navigable, but never leave the previous step's highlight on screen.
+      this.log.error(`Step ${index + 1}: cannot open "${step.file}"`);
+      this.statuses.set(index, "missing");
+      this.startLine = undefined;
+      this.renderer.clear();
+      this.card.clear();
+      this.controlBar.update(tour, index, "missing");
+      this.changeEmitter.fire();
+      await hideHover(this.log);
+      void vscode.window.showWarningMessage(
+        `Agent Tour: step ${index + 1} refers to ${step.file}, which no longer exists. Use Next or Previous to continue.`,
+      );
       return;
     }
 
-    let document: vscode.TextDocument;
-    try {
-      document = await vscode.workspace.openTextDocument(uri);
-    } catch (error) {
-      this.log.error(`Step ${index + 1}: cannot open ${step.file}: ${String(error)}`);
-      void vscode.window.showErrorMessage(`Step ${index + 1}: cannot open ${step.file}.`);
-      return;
-    }
     const editor = await vscode.window.showTextDocument(document, { preview: false, preserveFocus: false });
     if (navigation !== this.navigation) {
       return;
     }
 
-    const range = stepRange(document, step.range.start, step.range.end);
-    this.anchorMatched = step.anchor.length > 0 && document.lineAt(range.start.line).text.includes(step.anchor);
-    if (!this.anchorMatched) {
-      // Phase 2's AnchorResolver relocates the step; for now just flag it.
-      this.log.warn(`Step ${index + 1}: anchor "${step.anchor}" not found on line ${range.start.line + 1}`);
+    const resolution = resolveStep(document, step);
+    this.statuses.set(index, resolution.status);
+    this.startLine = resolution.range.start.line;
+    if (resolution.status === "relocated") {
+      this.log.info(`Step ${index + 1}: anchor moved ${formatDelta(resolution.delta)} to line ${this.startLine + 1}`);
+    } else if (resolution.status === "stale") {
+      this.log.warn(`Step ${index + 1}: anchor "${step.anchor}" not found in ${step.file}`);
     }
 
-    this.renderer.show(editor, range, step.kind, index + 1);
-    this.card.set(uri, range, renderCard(tour, index, !this.anchorMatched));
-    this.controlBar.update(tour, index);
+    const { range } = resolution;
+    this.renderer.show(editor, range, step.kind, index + 1, resolution.status === "stale");
+    this.card.set(uri, range, renderCard(tour, index, resolution));
+    this.controlBar.update(tour, index, resolution.status);
+    this.changeEmitter.fire();
 
     const cursor = quietPosition(document.lineAt(range.start.line));
     editor.selection = new vscode.Selection(cursor, cursor);
@@ -188,7 +221,7 @@ export class TourPlayer implements vscode.Disposable {
       return;
     }
     await vscode.commands.executeCommand("editor.action.showHover", { focus: "noAutoFocus" });
-    this.log.info(`Step ${index + 1}/${tour.steps.length}: ${step.file}:${step.range.start}-${step.range.end}`);
+    this.log.info(`Step ${index + 1}/${tour.steps.length}: ${step.file}:${range.start.line + 1}-${range.end.line + 1}`);
   }
 
   dispose(): void {
@@ -210,12 +243,12 @@ function readSpotlightOptions(): SpotlightOptions {
   };
 }
 
-/** Converts a 1-based inclusive range to a clamped, 0-based whole-line range. */
-export function stepRange(document: vscode.TextDocument, start: number, end: number): vscode.Range {
-  const last = document.lineCount - 1;
-  const startLine = Math.min(Math.max(start - 1, 0), last);
-  const endLine = Math.min(Math.max(end - 1, startLine), last);
-  return new vscode.Range(startLine, 0, endLine, document.lineAt(endLine).range.end.character);
+async function openDocument(uri: vscode.Uri): Promise<vscode.TextDocument | undefined> {
+  try {
+    return await vscode.workspace.openTextDocument(uri);
+  } catch {
+    return undefined;
+  }
 }
 
 /**

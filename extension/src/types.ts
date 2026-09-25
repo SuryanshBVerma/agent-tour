@@ -23,6 +23,12 @@ export interface Tour {
   steps: TourStep[];
 }
 
+/**
+ * How a step mapped onto the current file: anchor on its declared line (`exact`), found
+ * elsewhere (`relocated`), not found (`stale`), or the file could not be opened (`missing`).
+ */
+export type StepStatus = "exact" | "relocated" | "stale" | "missing";
+
 export const TOUR_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,80}$/;
 
 export const KIND_LABELS: Record<StepKind, string> = {
