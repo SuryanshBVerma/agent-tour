@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: extension/package-lock.json
 
       - name: Cache VS Code test build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: extension/.vscode-test
           key: vscode-test-${{ runner.os }}-1.138.0
