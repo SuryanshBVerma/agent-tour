@@ -1,0 +1,136 @@
+{
+  "name": "agent-tour",
+  "displayName": "Agent Tour",
+  "description": "Guided, spotlighted code tours of changes written by coding agents.",
+  "version": "0.0.1",
+  "publisher": "trivium",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.138.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onUri"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Tours never auto-start in untrusted workspaces."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentTour.spike.start",
+        "title": "Start Spike Tour",
+        "category": "Agent Tour"
+      },
+      {
+        "command": "agentTour.next",
+        "title": "Next Step",
+        "category": "Agent Tour",
+        "enablement": "agentTour.active"
+      },
+      {
+        "command": "agentTour.previous",
+        "title": "Previous Step",
+        "category": "Agent Tour",
+        "enablement": "agentTour.active"
+      },
+      {
+        "command": "agentTour.showCard",
+        "title": "Show Step Card",
+        "category": "Agent Tour",
+        "enablement": "agentTour.active"
+      },
+      {
+        "command": "agentTour.stop",
+        "title": "Stop Tour",
+        "category": "Agent Tour",
+        "enablement": "agentTour.active"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "agentTour.next",
+        "key": "alt+]",
+        "when": "agentTour.active && !inlineSuggestionVisible"
+      },
+      {
+        "command": "agentTour.previous",
+        "key": "alt+[",
+        "when": "agentTour.active && !inlineSuggestionVisible"
+      },
+      {
+        "command": "agentTour.showCard",
+        "key": "alt+h",
+        "when": "agentTour.active"
+      },
+      {
+        "command": "agentTour.stop",
+        "key": "escape",
+        "when": "agentTour.active && editorTextFocus && !editorHoverVisible && !suggestWidgetVisible && !findWidgetVisible && !parameterHintsVisible && !inSnippetMode && !editorHasSelection && !editorHasMultipleSelections && !notificationToastsVisible"
+      }
+    ],
+    "configuration": {
+      "title": "Agent Tour",
+      "properties": {
+        "agentTour.autoStart": {
+          "type": "string",
+          "enum": ["off", "prompt", "on"],
+          "default": "prompt",
+          "description": "Whether a newly written tour starts automatically."
+        },
+        "agentTour.dimOpacity": {
+          "type": "number",
+          "default": 0.35,
+          "minimum": 0.05,
+          "maximum": 1,
+          "description": "Opacity of code outside the current step."
+        },
+        "agentTour.dimMode": {
+          "type": "string",
+          "enum": ["opacity", "wash", "off"],
+          "default": "opacity",
+          "description": "How code outside the current step is dimmed. 'opacity' relies on undocumented decoration CSS; 'wash' is the background-tint fallback."
+        },
+        "agentTour.tourDirectory": {
+          "type": "string",
+          "default": ".agent-tours",
+          "description": "Workspace-relative folder that holds tour files."
+        }
+      }
+    },
+    "colors": [
+      { "id": "agentTour.changeBackground", "description": "Background of a 'change' step.", "defaults": { "dark": "#2ea04326", "light": "#2ea0431f", "highContrast": "#2ea04340", "highContrastLight": "#2ea04340" } },
+      { "id": "agentTour.changeBorder", "description": "Left border of a 'change' step.", "defaults": { "dark": "#3fb950", "light": "#1a7f37", "highContrast": "#3fb950", "highContrastLight": "#1a7f37" } },
+      { "id": "agentTour.contextBackground", "description": "Background of a 'context' step.", "defaults": { "dark": "#388bfd26", "light": "#0969da1a", "highContrast": "#388bfd40", "highContrastLight": "#0969da40" } },
+      { "id": "agentTour.contextBorder", "description": "Left border of a 'context' step.", "defaults": { "dark": "#58a6ff", "light": "#0969da", "highContrast": "#58a6ff", "highContrastLight": "#0969da" } },
+      { "id": "agentTour.riskBackground", "description": "Background of a 'risk' step.", "defaults": { "dark": "#f8514926", "light": "#cf222e1a", "highContrast": "#f8514940", "highContrastLight": "#cf222e40" } },
+      { "id": "agentTour.riskBorder", "description": "Left border of a 'risk' step.", "defaults": { "dark": "#f85149", "light": "#cf222e", "highContrast": "#f85149", "highContrastLight": "#cf222e" } },
+      { "id": "agentTour.decisionBackground", "description": "Background of a 'decision' step.", "defaults": { "dark": "#a371f726", "light": "#8250df1a", "highContrast": "#a371f740", "highContrastLight": "#8250df40" } },
+      { "id": "agentTour.decisionBorder", "description": "Left border of a 'decision' step.", "defaults": { "dark": "#bc8cff", "light": "#8250df", "highContrast": "#bc8cff", "highContrastLight": "#8250df" } },
+      { "id": "agentTour.dimWash", "description": "Background wash over code outside the step when dimMode is 'wash'.", "defaults": { "dark": "#00000059", "light": "#ffffff8c", "highContrast": "#00000000", "highContrastLight": "#00000000" } }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.20.4",
+    "@types/vscode": "~1.138.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "mocha": "^11.8.0",
+    "typescript": "~5.9.3"
+  }
+}
