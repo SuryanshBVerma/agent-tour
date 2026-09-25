@@ -1,0 +1,74 @@
+name: Release
+
+# Push a tag like v0.1.0 (matching extension/package.json "version") to publish a release
+# with agent-tour.vsix and code-tour-skill.zip attached. Asset names are stable, so
+# .../releases/latest/download/agent-tour.vsix always points at the newest build.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release and upload assets
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Tag must match package.json version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match package.json version $version"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run check:skill
+      - run: node --test skill-src/validate-tour.test.mjs
+      - run: xvfb-run -a npm test
+      - run: npm run package
+
+      - name: Zip the skill
+        working-directory: skill
+        run: zip -r ../extension/code-tour-skill.zip code-tour
+
+      - name: Release notes from CHANGELOG.md
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          # Plain string matching: the section starts at "## [<version>]" and ends at the next "## [".
+          awk -v v="$version" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && index($0, "## [") == 1 { exit }
+            found { print }
+          ' ../CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::No CHANGELOG.md section for $version"
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" agent-tour.vsix code-tour-skill.zip \
+            --title "Agent Tour $TAG" \
+            --notes-file release-notes.md \
+            --verify-tag

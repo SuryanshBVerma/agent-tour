@@ -28,6 +28,9 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
   they are stale.
 - `npm run test:skill` runs the validator tests (`node --test`, no VS Code needed).
 - `npm run package` builds `agent-tour.vsix`.
+- `npm run sample-tour` publishes the fixture tour for the sample workspace (F5 does this).
+- Releasing: bump `version` in `extension/package.json`, add a `CHANGELOG.md` section, then
+  push a `vX.Y.Z` tag.
 
 ## Status
 - Phase 0: the code is done, and the manual checks in `docs/phase0-spike.md` are pending.
@@ -39,6 +42,9 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 - Phase 3 (skill): done. `skill/code-tour/` holds SKILL.md, the bundled validator
   `scripts/validate-tour.mjs`, and an example. The validator's source is
   `extension/skill-src/`.
+- v0.1.0 prepared for GitHub (SuryanshBVerma/agent-tour, MIT). Tours live in a per-user temp
+  slot (not the repo); the inline card is the default; kinds are colored. CI is
+  `.github/workflows/ci.yml` and releases come from `release.yml` on `v*.*.*` tags.
 - Next is Phase 4: dogfooding on real projects.
 
 ## Tour contract (summary)

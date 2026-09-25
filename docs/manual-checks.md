@@ -15,3 +15,13 @@ F5 → **Run Agent Tour (sample workspace)**. The Phase 0 checks are in `phase0-
 | 8 | Untrusted workspace: `"agentTour.autoStart": "on"` in workspace settings is ignored | Open the sample workspace in Restricted Mode, add the setting, then write a tour file | |
 
 Revert the fixture edits from checks 5–7 afterwards (`git checkout -- extension/test/fixtures`).
+
+## v0.1.0 additions
+
+| # | Check | How | Result |
+|---|---|---|---|
+| 9 | Kind badge in the card is colored (green change, blue context, amber decision, red risk) | Set `agentTour.cardStyle` to `"hover"`, step through all 4 kinds, light and dark theme | |
+| 10 | Inline card appears above the step and stays open when clicking elsewhere | Default settings; click around the file | |
+| 11 | Inline card title bar ‹ › × work; Alt+H re-opens a collapsed card | Collapse the card, press Alt+H | |
+| 12 | Nothing is written into the repository | Publish a tour, run `git status` in the project | |
+| 13 | A new tour replaces the previous one | Ask the agent for two tours in a row; Agent Tours lists one | |

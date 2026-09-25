@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Cache VS Code test build
+        uses: actions/cache@v4
+        with:
+          path: extension/.vscode-test
+          key: vscode-test-${{ runner.os }}-1.138.0
+
+      - run: npm ci
+
+      - name: Compile and check the skill's generated files are committed
+        run: npm run check:skill
+
+      - name: Validator tests
+        run: node --test skill-src/validate-tour.test.mjs
+
+      - name: Extension integration tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm test
+
+      - name: Extension integration tests (Windows)
+        if: runner.os == 'Windows'
+        run: npm test
+
+  package:
+    name: Package .vsix
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - run: npm ci
+      - run: npm run package
+
+      - name: Zip the skill
+        working-directory: skill
+        run: zip -r ../extension/code-tour-skill.zip code-tour
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-tour-${{ github.sha }}
+          path: |
+            extension/agent-tour.vsix
+            extension/code-tour-skill.zip
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">Agent Tour</title>
+  <desc id="desc">A VS Code editor with one step spotlighted, the rest dimmed, and a step card above it.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#161b2e"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2da44e" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2da44e" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <g opacity="0.07" stroke="#fff">
+    <path d="M0 70H1280M0 140H1280M0 210H1280M0 280H1280M0 350H1280"/>
+    <path d="M160 0V420M320 0V420M480 0V420M640 0V420M800 0V420M960 0V420M1120 0V420"/>
+  </g>
+
+  <!-- Title block -->
+  <g font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
+    <text x="72" y="150" fill="#f0f6fc" font-size="64" font-weight="700" letter-spacing="-1">Agent Tour</text>
+    <text x="74" y="198" fill="#9aa7b8" font-size="22">Guided, spotlighted tours of agent-written changes,</text>
+    <text x="74" y="228" fill="#9aa7b8" font-size="22">played in the real VS Code editor.</text>
+
+    <g font-size="15" font-weight="600">
+      <rect x="74" y="262" width="92" height="30" rx="15" fill="#2da44e"/>
+      <text x="120" y="282" fill="#0b1020" text-anchor="middle">Change</text>
+      <rect x="176" y="262" width="96" height="30" rx="15" fill="#2f81f7"/>
+      <text x="224" y="282" fill="#0b1020" text-anchor="middle">Context</text>
+      <rect x="282" y="262" width="104" height="30" rx="15" fill="#d29922"/>
+      <text x="334" y="282" fill="#0b1020" text-anchor="middle">Decision</text>
+      <rect x="396" y="262" width="70" height="30" rx="15" fill="#e5534b"/>
+      <text x="431" y="282" fill="#0b1020" text-anchor="middle">Risk</text>
+    </g>
+    <text x="74" y="336" fill="#6e7b8f" font-size="16">VS Code extension + Claude Code skill</text>
+  </g>
+
+  <!-- Editor window -->
+  <g transform="translate(620 44)" filter="url(#shadow)">
+    <rect width="600" height="332" rx="12" fill="#0d1117" stroke="#30363d"/>
+    <rect width="600" height="34" rx="12" fill="#161b22"/>
+    <rect y="22" width="600" height="12" fill="#161b22"/>
+    <circle cx="20" cy="17" r="6" fill="#ff5f57"/>
+    <circle cx="40" cy="17" r="6" fill="#febc2e"/>
+    <circle cx="60" cy="17" r="6" fill="#28c840"/>
+    <text x="300" y="22" fill="#8b949e" font-size="12" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif">rateLimit.ts</text>
+
+    <!-- dimmed code above -->
+    <g opacity="0.35">
+      <rect x="56" y="52" width="180" height="8" rx="4" fill="#c9d1d9"/>
+      <rect x="56" y="70" width="260" height="8" rx="4" fill="#79c0ff"/>
+    </g>
+
+    <!-- step card (inline, above the step) -->
+    <g transform="translate(40 92)">
+      <rect width="500" height="92" rx="8" fill="#161b22" stroke="#30363d"/>
+      <circle cx="22" cy="24" r="11" fill="#2da44e"/>
+      <text x="22" y="28.5" fill="#fff" font-size="12" font-weight="700" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif">2</text>
+      <text x="42" y="29" fill="#c9d1d9" font-size="13" font-weight="600" font-family="Segoe UI, Helvetica, Arial, sans-serif">Step 2 of 5</text>
+      <rect x="126" y="15" width="64" height="19" rx="9.5" fill="#2da44e"/>
+      <text x="158" y="29" fill="#0b1020" font-size="11.5" font-weight="700" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif">Change</text>
+      <text x="420" y="29" fill="#8b949e" font-size="15" font-family="Segoe UI, Helvetica, Arial, sans-serif">‹  ›  ×</text>
+      <rect x="16" y="48" width="300" height="8" rx="4" fill="#8b949e"/>
+      <rect x="16" y="66" width="420" height="8" rx="4" fill="#484f58"/>
+    </g>
+
+    <!-- spotlighted step -->
+    <rect x="40" y="196" width="540" height="84" fill="url(#glow)"/>
+    <rect x="40" y="196" width="3" height="84" fill="#3fb950"/>
+    <circle cx="26" cy="208" r="9" fill="#2da44e"/>
+    <text x="26" y="212" fill="#fff" font-size="10.5" font-weight="700" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif">2</text>
+    <rect x="56" y="204" width="120" height="8" rx="4" fill="#ff7b72"/>
+    <rect x="184" y="204" width="170" height="8" rx="4" fill="#d2a8ff"/>
+    <rect x="76" y="222" width="240" height="8" rx="4" fill="#c9d1d9"/>
+    <rect x="76" y="240" width="300" height="8" rx="4" fill="#79c0ff"/>
+    <rect x="76" y="258" width="190" height="8" rx="4" fill="#a5d6ff"/>
+
+    <!-- dimmed code below -->
+    <g opacity="0.35">
+      <rect x="56" y="296" width="210" height="8" rx="4" fill="#c9d1d9"/>
+      <rect x="56" y="314" width="140" height="8" rx="4" fill="#79c0ff"/>
+    </g>
+  </g>
+</svg>

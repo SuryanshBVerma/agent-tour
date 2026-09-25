@@ -25,3 +25,6 @@ Thumbs.db
 # Left behind only if a test run is killed
 extension/test/fixtures/outside-*/
 extension/test/fixtures/sample-workspace/linked
+
+# Release artifacts built locally or in CI
+code-tour-skill.zip
