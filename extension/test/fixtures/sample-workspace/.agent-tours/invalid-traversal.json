@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "invalid-traversal",
+  "title": "Points outside the workspace",
+  "summary": "Fixture: must be rejected.",
+  "baseRef": "HEAD",
+  "createdBy": "fixture",
+  "steps": [
+    {
+      "file": "../../outside.txt",
+      "range": { "start": 1, "end": 1 },
+      "anchor": "x",
+      "kind": "change",
+      "title": "Escape attempt",
+      "description": "Should never open."
+    }
+  ]
+}

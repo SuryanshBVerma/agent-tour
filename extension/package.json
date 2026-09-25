@@ -26,8 +26,13 @@
   "contributes": {
     "commands": [
       {
-        "command": "agentTour.spike.start",
-        "title": "Start Spike Tour",
+        "command": "agentTour.start",
+        "title": "Start Tour...",
+        "category": "Agent Tour"
+      },
+      {
+        "command": "agentTour.reload",
+        "title": "Reload Tours",
         "category": "Agent Tour"
       },
       {
@@ -82,7 +87,11 @@
       "properties": {
         "agentTour.autoStart": {
           "type": "string",
-          "enum": ["off", "prompt", "on"],
+          "enum": [
+            "off",
+            "prompt",
+            "on"
+          ],
           "default": "prompt",
           "description": "Whether a newly written tour starts automatically."
         },
@@ -95,7 +104,11 @@
         },
         "agentTour.dimMode": {
           "type": "string",
-          "enum": ["opacity", "wash", "off"],
+          "enum": [
+            "opacity",
+            "wash",
+            "off"
+          ],
           "default": "opacity",
           "description": "How code outside the current step is dimmed. 'opacity' relies on undocumented decoration CSS; 'wash' is the background-tint fallback."
         },
@@ -107,15 +120,122 @@
       }
     },
     "colors": [
-      { "id": "agentTour.changeBackground", "description": "Background of a 'change' step.", "defaults": { "dark": "#2ea04326", "light": "#2ea0431f", "highContrast": "#2ea04340", "highContrastLight": "#2ea04340" } },
-      { "id": "agentTour.changeBorder", "description": "Left border of a 'change' step.", "defaults": { "dark": "#3fb950", "light": "#1a7f37", "highContrast": "#3fb950", "highContrastLight": "#1a7f37" } },
-      { "id": "agentTour.contextBackground", "description": "Background of a 'context' step.", "defaults": { "dark": "#388bfd26", "light": "#0969da1a", "highContrast": "#388bfd40", "highContrastLight": "#0969da40" } },
-      { "id": "agentTour.contextBorder", "description": "Left border of a 'context' step.", "defaults": { "dark": "#58a6ff", "light": "#0969da", "highContrast": "#58a6ff", "highContrastLight": "#0969da" } },
-      { "id": "agentTour.riskBackground", "description": "Background of a 'risk' step.", "defaults": { "dark": "#f8514926", "light": "#cf222e1a", "highContrast": "#f8514940", "highContrastLight": "#cf222e40" } },
-      { "id": "agentTour.riskBorder", "description": "Left border of a 'risk' step.", "defaults": { "dark": "#f85149", "light": "#cf222e", "highContrast": "#f85149", "highContrastLight": "#cf222e" } },
-      { "id": "agentTour.decisionBackground", "description": "Background of a 'decision' step.", "defaults": { "dark": "#a371f726", "light": "#8250df1a", "highContrast": "#a371f740", "highContrastLight": "#8250df40" } },
-      { "id": "agentTour.decisionBorder", "description": "Left border of a 'decision' step.", "defaults": { "dark": "#bc8cff", "light": "#8250df", "highContrast": "#bc8cff", "highContrastLight": "#8250df" } },
-      { "id": "agentTour.dimWash", "description": "Background wash over code outside the step when dimMode is 'wash'.", "defaults": { "dark": "#00000059", "light": "#ffffff8c", "highContrast": "#00000000", "highContrastLight": "#00000000" } }
+      {
+        "id": "agentTour.changeBackground",
+        "description": "Background of a 'change' step.",
+        "defaults": {
+          "dark": "#2ea04326",
+          "light": "#2ea0431f",
+          "highContrast": "#2ea04340",
+          "highContrastLight": "#2ea04340"
+        }
+      },
+      {
+        "id": "agentTour.changeBorder",
+        "description": "Left border of a 'change' step.",
+        "defaults": {
+          "dark": "#3fb950",
+          "light": "#1a7f37",
+          "highContrast": "#3fb950",
+          "highContrastLight": "#1a7f37"
+        }
+      },
+      {
+        "id": "agentTour.contextBackground",
+        "description": "Background of a 'context' step.",
+        "defaults": {
+          "dark": "#388bfd26",
+          "light": "#0969da1a",
+          "highContrast": "#388bfd40",
+          "highContrastLight": "#0969da40"
+        }
+      },
+      {
+        "id": "agentTour.contextBorder",
+        "description": "Left border of a 'context' step.",
+        "defaults": {
+          "dark": "#58a6ff",
+          "light": "#0969da",
+          "highContrast": "#58a6ff",
+          "highContrastLight": "#0969da"
+        }
+      },
+      {
+        "id": "agentTour.riskBackground",
+        "description": "Background of a 'risk' step.",
+        "defaults": {
+          "dark": "#f8514926",
+          "light": "#cf222e1a",
+          "highContrast": "#f8514940",
+          "highContrastLight": "#cf222e40"
+        }
+      },
+      {
+        "id": "agentTour.riskBorder",
+        "description": "Left border of a 'risk' step.",
+        "defaults": {
+          "dark": "#f85149",
+          "light": "#cf222e",
+          "highContrast": "#f85149",
+          "highContrastLight": "#cf222e"
+        }
+      },
+      {
+        "id": "agentTour.decisionBackground",
+        "description": "Background of a 'decision' step.",
+        "defaults": {
+          "dark": "#a371f726",
+          "light": "#8250df1a",
+          "highContrast": "#a371f740",
+          "highContrastLight": "#8250df40"
+        }
+      },
+      {
+        "id": "agentTour.decisionBorder",
+        "description": "Left border of a 'decision' step.",
+        "defaults": {
+          "dark": "#bc8cff",
+          "light": "#8250df",
+          "highContrast": "#bc8cff",
+          "highContrastLight": "#8250df"
+        }
+      },
+      {
+        "id": "agentTour.dimWash",
+        "description": "Background wash over code outside the step when dimMode is 'wash'.",
+        "defaults": {
+          "dark": "#00000059",
+          "light": "#ffffff8c",
+          "highContrast": "#00000000",
+          "highContrastLight": "#00000000"
+        }
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "agentTour.next",
+          "when": "agentTour.active"
+        },
+        {
+          "command": "agentTour.previous",
+          "when": "agentTour.active"
+        },
+        {
+          "command": "agentTour.showCard",
+          "when": "agentTour.active"
+        },
+        {
+          "command": "agentTour.stop",
+          "when": "agentTour.active"
+        }
+      ]
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": "**/.agent-tours/*.json",
+        "url": "./schema/tour.schema.json"
+      }
     ]
   },
   "scripts": {
@@ -132,5 +252,8 @@
     "@vscode/test-electron": "^3.1.0",
     "mocha": "^11.8.0",
     "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0"
   }
 }

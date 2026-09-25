@@ -3,6 +3,34 @@
 Record non-obvious decisions and deviations from `implementation-plan.md`, newest first.
 Include the date, the decision, why it was made, and the alternatives considered.
 
+## 2026-09-25: Phase 1 core implementation choices
+- **ajv as a runtime dependency, draft-07 schema.** `extension/schema/tour.schema.json` is
+  canonical and is also contributed via `jsonValidation`, so editing a tour in VS Code gets
+  completion and squiggles. Checks JSON Schema can't express (`end >= start`, id matches the
+  file name, path safety beyond the pattern) live in `tourValidation.ts`, which the Phase 3
+  validator can reuse.
+- **The file name must equal `<id>.json`.** Lookup by id (URI handler, `agentTour.start`)
+  then needs only one file read, and one file can't impersonate another tour's id.
+  Duplicate ids across workspace folders: the first one wins and a warning is logged.
+- **Invalid tours are kept with their errors, not dropped.** A watcher-seen invalid file
+  raises a warning with "Show Errors" (unless autoStart is off), so an agent's broken tour
+  is visible. Phase 2's TourTree can list them.
+- **Only watcher events trigger auto-start.** Tours already on disk at activation never
+  start or prompt on their own.
+- **Auto-start "on" rules:** it never replaces a running tour without asking. It waits
+  for 3 s with no keyboard or mouse input and no dirty edits in the active editor, for up
+  to 30 s, then falls back to a prompt. A reload from disk doesn't make a document dirty,
+  so an agent's writes don't count as user input.
+- **A rewritten file for the playing tour reloads in place** at the same step (clamped).
+  A deleted one stops the tour.
+- **`find(id)` reads from disk,** so a start URI sent right after the agent writes the file
+  works before the watcher's 250 ms debounce fires.
+- **Test hook `snapshot().decorated`.** The VS Code API can't read decorations back, so the
+  renderer tracks what it has set per visible editor. The tests assert cleanup against that.
+- **Fixture renamed `spike-workspace` → `sample-workspace`;** the hardcoded tour became
+  `.agent-tours/2026-09-25-rate-limiting.json` plus four invalid fixtures. `.gitignore` now
+  ignores only the repo-root `/.agent-tours/`.
+
 ## 2026-09-25: Phase 0 spike implementation choices
 - **Minimum VS Code 1.138.** `engines.vscode` is `^1.138.0`, matching the newest
   `@types/vscode` on npm. Integration tests are pinned to 1.138.0, the declared minimum.
