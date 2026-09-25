@@ -78,7 +78,7 @@ jobs:
         working-directory: skill
         run: zip -r ../extension/code-tour-skill.zip code-tour
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agent-tour-${{ github.sha }}
           path: |
