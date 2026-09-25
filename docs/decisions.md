@@ -3,6 +3,44 @@
 Record non-obvious decisions and deviations from `implementation-plan.md`, newest first.
 Include the date, the decision, why it was made, and the alternatives considered.
 
+## 2026-09-25: Phase 2 robustness implementation choices
+- **Anchor search order.** Exact text within ±50 lines of the declared start, then a
+  whitespace-insensitive match within ±50, then exact across the whole file, then
+  whitespace-insensitive across the whole file. The nearest match wins, and ties go to the
+  line above. A re-indented line near the declared spot beats an identical copy far away.
+  A relocated step keeps its declared length.
+- **Resolved on each visit, not live.** Steps are re-resolved on every `goto` (navigation,
+  Alt+H, reload). Edits made while a step is shown are tracked by VS Code's own decoration
+  range behavior until the next visit. Live re-resolution on each keystroke would make the
+  spotlight jump while typing.
+- **A stale step gets a dashed outline, not the spotlight.** Code outside it isn't dimmed,
+  the gutter badge is grey, and the card and status bar show a warning. This follows the
+  plan's "stale badge instead of wrong highlight".
+- **A missing file keeps the tour going.** The step is marked `missing`, the previous
+  step's highlight is cleared (Phase 1 left it on screen), and Next/Previous continue.
+- **Tour tree lives in the Explorer** (`agentTour.tours`), not a new activity-bar
+  container, so no icon asset is needed for the PoC. Clicking a step starts the tour there,
+  or jumps if it's already playing. Invalid files are listed with their errors, and
+  clicking one opens the file. Tooltips are untrusted Markdown with images neutralized.
+- **Workspace Trust via `restrictedConfigurations`.** `agentTour.autoStart` and
+  `agentTour.tourDirectory` are ignored when set by an untrusted workspace, so a cloned
+  repo can't turn on auto-start or redirect tour loading. `dimOpacity` is already clamped.
+- **Race fixed in `start()`.** It awaited `setContext` before claiming its navigation
+  token, so a navigation during that gap (tree click, keybinding, the Phase 1 test) was
+  overwritten by step 1. This was the intermittent Phase 1 test failure, and a
+  deterministic regression test now covers it.
+- **Late watcher events after deletion are removals.** Windows can deliver a change event
+  after a file is deleted. The store used to record the missing file as an invalid tour, so
+  the tree would list it. Loads now check that the file exists, deletes cancel pending
+  debounced loads, and removing an invalid file fires a change event so the tree refreshes.
+- **Watcher pattern is relative to the workspace folder** (`<folder>` + `<tourDirectory>/*.json`),
+  not the tour directory, so it also covers a tour directory created after activation.
+  This was made while chasing a one-off auto-start timeout (2 s exceeded, 1 in 20 runs,
+  right after `store.reload()`). The old pattern passed the new regression tests too, so
+  this change is **not proven** to fix that timeout. The test now reports whether the
+  store saw the file when it times out, so the next occurrence can be diagnosed. Stability
+  after all fixes: 0 failures in 20 consecutive full runs.
+
 ## 2026-09-25: Phase 1 core implementation choices
 - **ajv as a runtime dependency, draft-07 schema.** `extension/schema/tour.schema.json` is
   canonical and is also contributed via `jsonValidation`, so editing a tour in VS Code gets

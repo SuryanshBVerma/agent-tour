@@ -20,7 +20,11 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "Tours never auto-start in untrusted workspaces."
+      "description": "In untrusted workspaces tours never start automatically, start links are refused, and workspace settings cannot change auto-start or the tour folder.",
+      "restrictedConfigurations": [
+        "agentTour.autoStart",
+        "agentTour.tourDirectory"
+      ]
     }
   },
   "contributes": {
@@ -28,12 +32,14 @@
       {
         "command": "agentTour.start",
         "title": "Start Tour...",
-        "category": "Agent Tour"
+        "category": "Agent Tour",
+        "icon": "$(play)"
       },
       {
         "command": "agentTour.reload",
         "title": "Reload Tours",
-        "category": "Agent Tour"
+        "category": "Agent Tour",
+        "icon": "$(refresh)"
       },
       {
         "command": "agentTour.next",
@@ -57,7 +63,13 @@
         "command": "agentTour.stop",
         "title": "Stop Tour",
         "category": "Agent Tour",
-        "enablement": "agentTour.active"
+        "enablement": "agentTour.active",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "agentTour.goto",
+        "title": "Go to Step",
+        "category": "Agent Tour"
       }
     ],
     "keybindings": [
@@ -209,6 +221,16 @@
           "highContrast": "#00000000",
           "highContrastLight": "#00000000"
         }
+      },
+      {
+        "id": "agentTour.staleBorder",
+        "description": "Dashed outline of a step whose anchor was not found.",
+        "defaults": {
+          "dark": "#d29922",
+          "light": "#9a6700",
+          "highContrast": "#d29922",
+          "highContrastLight": "#9a6700"
+        }
       }
     ],
     "menus": {
@@ -228,6 +250,29 @@
         {
           "command": "agentTour.stop",
           "when": "agentTour.active"
+        },
+        {
+          "command": "agentTour.goto",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "agentTour.stop",
+          "when": "view == agentTour.tours && agentTour.active",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentTour.reload",
+          "when": "view == agentTour.tours",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agentTour.start",
+          "when": "view == agentTour.tours && viewItem == agentTour.tour",
+          "group": "inline"
         }
       ]
     },
@@ -235,6 +280,20 @@
       {
         "fileMatch": "**/.agent-tours/*.json",
         "url": "./schema/tour.schema.json"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "agentTour.tours",
+          "name": "Agent Tours"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "agentTour.tours",
+        "contents": "No tours yet. After a multi-file change, the code-tour skill writes a tour to the `.agent-tours` folder and it appears here.\n[Reload Tours](command:agentTour.reload)"
       }
     ]
   },

@@ -14,6 +14,8 @@ interface Spotlight {
   range: vscode.Range;
   kind: StepKind;
   stepNumber: number;
+  /** Anchor not found: outline the declared lines instead of spotlighting them. */
+  stale: boolean;
 }
 
 const KINDS: StepKind[] = ["change", "context", "risk", "decision"];
@@ -25,6 +27,7 @@ const GUTTER_COLORS: Record<StepKind, string> = {
   risk: "#e5534b",
   decision: "#986ee2",
 };
+const STALE_GUTTER_COLOR = "#8b949e";
 
 /**
  * Draws the current step: tinted, bordered target lines, a numbered gutter badge,
@@ -37,6 +40,7 @@ const GUTTER_COLORS: Record<StepKind, string> = {
 export class SpotlightRenderer implements vscode.Disposable {
   private targetTypes = new Map<StepKind, vscode.TextEditorDecorationType>();
   private dimType: vscode.TextEditorDecorationType | undefined;
+  private staleType: vscode.TextEditorDecorationType | undefined;
   private gutterType: vscode.TextEditorDecorationType | undefined;
   private current: Spotlight | undefined;
   private applied = new Map<vscode.TextEditor, Map<vscode.TextEditorDecorationType, number>>();
@@ -53,11 +57,11 @@ export class SpotlightRenderer implements vscode.Disposable {
     this.redrawVisible();
   }
 
-  show(editor: vscode.TextEditor, range: vscode.Range, kind: StepKind, stepNumber: number): void {
+  show(editor: vscode.TextEditor, range: vscode.Range, kind: StepKind, stepNumber: number, stale = false): void {
     this.clear();
-    this.current = { uri: editor.document.uri, range, kind, stepNumber };
+    this.current = { uri: editor.document.uri, range, kind, stepNumber, stale };
     this.gutterType = vscode.window.createTextEditorDecorationType({
-      gutterIconPath: gutterBadge(stepNumber, kind),
+      gutterIconPath: gutterBadge(stepNumber, stale ? STALE_GUTTER_COLOR : GUTTER_COLORS[kind]),
       gutterIconSize: "contain",
     });
     this.apply(editor);
@@ -97,15 +101,20 @@ export class SpotlightRenderer implements vscode.Disposable {
     if (!this.current) {
       return;
     }
-    const { range, kind } = this.current;
+    const { range, kind, stale } = this.current;
+    // A stale step would otherwise confidently spotlight the wrong code, so it only
+    // gets a dashed outline and nothing else is dimmed.
     for (const [typeKind, type] of this.targetTypes) {
-      this.set(editor, type, typeKind === kind ? [range] : []);
+      this.set(editor, type, !stale && typeKind === kind ? [range] : []);
+    }
+    if (this.staleType) {
+      this.set(editor, this.staleType, stale ? [range] : []);
     }
     if (this.gutterType) {
       this.set(editor, this.gutterType, [new vscode.Range(range.start, range.start)]);
     }
     if (this.dimType) {
-      this.set(editor, this.dimType, dimRanges(editor.document, range));
+      this.set(editor, this.dimType, stale ? [] : dimRanges(editor.document, range));
     }
   }
 
@@ -152,6 +161,15 @@ export class SpotlightRenderer implements vscode.Disposable {
         }),
       );
     }
+    this.staleType = vscode.window.createTextEditorDecorationType({
+      isWholeLine: true,
+      borderStyle: "dashed",
+      borderWidth: "0 0 0 2px",
+      borderColor: new vscode.ThemeColor("agentTour.staleBorder"),
+      overviewRulerColor: new vscode.ThemeColor("agentTour.staleBorder"),
+      overviewRulerLane: vscode.OverviewRulerLane.Full,
+      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+    });
     this.dimType = createDimType(this.options);
   }
 
@@ -159,6 +177,9 @@ export class SpotlightRenderer implements vscode.Disposable {
     const types = [...this.targetTypes.values()];
     if (this.dimType) {
       types.push(this.dimType);
+    }
+    if (this.staleType) {
+      types.push(this.staleType);
     }
     if (this.gutterType) {
       types.push(this.gutterType);
@@ -175,6 +196,9 @@ export class SpotlightRenderer implements vscode.Disposable {
       if (this.dimType) {
         perType.delete(this.dimType);
       }
+      if (this.staleType) {
+        perType.delete(this.staleType);
+      }
     }
     for (const type of this.targetTypes.values()) {
       type.dispose();
@@ -182,6 +206,8 @@ export class SpotlightRenderer implements vscode.Disposable {
     this.targetTypes.clear();
     this.dimType?.dispose();
     this.dimType = undefined;
+    this.staleType?.dispose();
+    this.staleType = undefined;
   }
 }
 
@@ -228,12 +254,12 @@ export function dimRanges(document: vscode.TextDocument, target: vscode.Range): 
   return ranges;
 }
 
-function gutterBadge(stepNumber: number, kind: StepKind): vscode.Uri {
+function gutterBadge(stepNumber: number, color: string): vscode.Uri {
   const label = stepNumber > 99 ? "99+" : String(stepNumber);
   const fontSize = label.length > 1 ? 9 : 11;
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">` +
-    `<circle cx="8" cy="8" r="7.5" fill="${GUTTER_COLORS[kind]}"/>` +
+    `<circle cx="8" cy="8" r="7.5" fill="${color}"/>` +
     `<text x="8" y="8" dy="0.35em" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" ` +
     `font-size="${fontSize}" font-weight="700" fill="#ffffff">${label}</text></svg>`;
   return vscode.Uri.parse(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);

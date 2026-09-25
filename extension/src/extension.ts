@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { TourPlayer } from "./tourPlayer";
 import { TourStore } from "./tourStore";
+import { TourNode, TourTree } from "./tourTree";
 import { TriggerHandler } from "./triggerHandler";
 import { KIND_LABELS, TOUR_ID_PATTERN } from "./types";
 
@@ -8,6 +9,7 @@ export interface AgentTourApi {
   player: TourPlayer;
   store: TourStore;
   trigger: TriggerHandler;
+  tree: TourTree;
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<AgentTourApi> {
@@ -15,13 +17,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<AgentT
   const store = new TourStore(log);
   const player = new TourPlayer(log);
   const trigger = new TriggerHandler(store, player, log);
+  const tree = new TourTree(store, player);
 
   context.subscriptions.push(
     log,
     store,
     player,
     trigger,
-    vscode.commands.registerCommand("agentTour.start", (id?: unknown) => startTour(store, player, id)),
+    tree,
+    vscode.commands.registerCommand("agentTour.start", (arg?: unknown) => startTour(store, player, arg)),
+    vscode.commands.registerCommand("agentTour.goto", (id: unknown, index: unknown) =>
+      startTour(store, player, id, typeof index === "number" ? index : 0),
+    ),
     vscode.commands.registerCommand("agentTour.reload", () => store.reload()),
     vscode.commands.registerCommand("agentTour.next", () => player.next()),
     vscode.commands.registerCommand("agentTour.previous", () => player.previous()),
@@ -32,18 +39,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<AgentT
   await store.reload();
   log.info(`Activated (VS Code ${vscode.version})`);
 
-  return { player, store, trigger };
+  return { player, store, trigger, tree };
 }
 
-/** Starts a tour by id (from another command or a keybinding) or from a quick pick. */
-async function startTour(store: TourStore, player: TourPlayer, id: unknown): Promise<void> {
+/**
+ * Starts a tour, or jumps within it if it is already playing. `arg` is a tour id (from
+ * another command or a keybinding), a tree node (inline Start action), or absent (quick pick).
+ */
+async function startTour(store: TourStore, player: TourPlayer, arg: unknown, index = 0): Promise<void> {
+  const id = isTourNode(arg) ? arg.loaded.tour.id : arg;
   if (typeof id === "string") {
+    const playing = player.snapshot();
+    if (playing.status === "playing" && playing.tourId === id) {
+      await player.goto(Math.min(Math.max(index, 0), (playing.total ?? 1) - 1));
+      return;
+    }
     const found = TOUR_ID_PATTERN.test(id) ? await store.find(id) : undefined;
     if (!found || "errors" in found) {
       void vscode.window.showWarningMessage(`Agent Tour: no valid tour with id "${id}".`);
       return;
     }
-    await player.start(found.tour, found.folder);
+    await player.start(found.tour, found.folder, index);
     return;
   }
 
@@ -66,6 +82,10 @@ async function startTour(store: TourStore, player: TourPlayer, id: unknown): Pro
   if (picked) {
     await player.start(picked.loaded.tour, picked.loaded.folder);
   }
+}
+
+function isTourNode(arg: unknown): arg is TourNode & { type: "tour" } {
+  return typeof arg === "object" && arg !== null && (arg as TourNode).type === "tour";
 }
 
 function summarizeKinds(kinds: (keyof typeof KIND_LABELS)[]): string {

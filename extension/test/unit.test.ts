@@ -51,24 +51,29 @@ describe("parseStartUri", () => {
   }
 });
 
+const ZERO = new vscode.Range(0, 0, 0, 0);
+const EXACT = { status: "exact", range: ZERO } as const;
+
 describe("step card", () => {
   it("trusts only this extension's commands and disables HTML", () => {
-    const md = renderCard(SAMPLE_TOUR, 0, false);
+    const md = renderCard(SAMPLE_TOUR, 0, EXACT);
     assert.deepStrictEqual(md.isTrusted, { enabledCommands: [...CARD_COMMANDS] });
     assert.strictEqual(md.supportHtml, false);
   });
 
   it("shows no Previous on the first step and Finish on the last", () => {
-    const first = renderCard(SAMPLE_TOUR, 0, false).value;
-    const last = renderCard(SAMPLE_TOUR, SAMPLE_TOUR.steps.length - 1, false).value;
+    const first = renderCard(SAMPLE_TOUR, 0, EXACT).value;
+    const last = renderCard(SAMPLE_TOUR, SAMPLE_TOUR.steps.length - 1, EXACT).value;
     assert.ok(!first.includes("command:agentTour.previous"));
     assert.ok(first.includes(`Step 1 of ${SAMPLE_TOUR.steps.length}`));
     assert.ok(last.includes("Finish"));
     assert.ok(last.includes("command:agentTour.previous"));
   });
 
-  it("marks stale anchors", () => {
-    assert.ok(renderCard(SAMPLE_TOUR, 0, true).value.includes("anchor not found"));
+  it("marks stale and relocated steps", () => {
+    assert.ok(renderCard(SAMPLE_TOUR, 0, { status: "stale", range: ZERO }).value.includes("Stale"));
+    const moved = renderCard(SAMPLE_TOUR, 0, { status: "relocated", range: ZERO, delta: -3 }).value;
+    assert.ok(moved.includes("moved 3 lines up"), moved);
   });
 
   it("neutralizes images so descriptions cannot fetch remote content", () => {

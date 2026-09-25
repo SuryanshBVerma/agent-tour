@@ -25,7 +25,10 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 - Phase 0: the code is done, and the manual checks in `docs/phase0-spike.md` are pending.
 - Phase 1 (core): done. Schema, TourStore and watcher, auto-start, and the Start Tour
   quick pick are in place.
-- Next is Phase 2: AnchorResolver, TourTree, and more Workspace Trust handling.
+- Phase 2 (robustness): done. AnchorResolver with relocated, stale and missing steps, the
+  TourTree in the Explorer, and Workspace Trust restricted settings are in place. Manual
+  checks are in `docs/manual-checks.md`.
+- Next is Phase 3: the `code-tour` skill (SKILL.md, validator, examples) in `skill/code-tour/`.
 
 ## Tour contract (summary)
 - Lines are 1-based and inclusive. `file` is workspace-relative; reject absolute paths and `..`.

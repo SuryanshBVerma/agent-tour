@@ -23,7 +23,8 @@ export interface InvalidTour {
 export type TourChange =
   | { type: "loaded"; loaded: LoadedTour; fromWatcher: boolean }
   | { type: "invalid"; invalid: InvalidTour; fromWatcher: boolean }
-  | { type: "removed"; id: string; uri: vscode.Uri };
+  /** `id` is undefined when the removed file was an invalid tour. */
+  | { type: "removed"; id: string | undefined; uri: vscode.Uri };
 
 /**
  * Discovers `<folder>/<tourDirectory>/<id>.json` in every workspace folder, validates
@@ -90,9 +91,11 @@ export class TourStore implements vscode.Disposable {
     this.tours.clear();
     this.invalid.clear();
 
-    for (const { folder, directory } of this.tourDirectories()) {
+    for (const { folder, directory, relative } of this.tourDirectories()) {
+      // Pattern relative to the workspace folder so it falls inside the workspace's own
+      // recursive watcher and also covers a tour directory that does not exist yet.
       const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(directory, "*.json"),
+        new vscode.RelativePattern(folder, `${relative}/*.json`),
       );
       watcher.onDidCreate((uri) => this.schedule(uri, folder));
       watcher.onDidChange((uri) => this.schedule(uri, folder));
@@ -103,7 +106,7 @@ export class TourStore implements vscode.Disposable {
       try {
         entries = await vscode.workspace.fs.readDirectory(directory);
       } catch {
-        continue; // Directory does not exist yet; the watcher still sees it appear.
+        continue; // Directory does not exist yet; the watcher still sees files appear in it.
       }
       for (const [name, type] of entries) {
         if (type === vscode.FileType.File && name.endsWith(".json")) {
@@ -121,15 +124,18 @@ export class TourStore implements vscode.Disposable {
     }
   }
 
-  private tourDirectories(): { folder: vscode.Uri; directory: vscode.Uri }[] {
+  private tourDirectories(): { folder: vscode.Uri; directory: vscode.Uri; relative: string }[] {
     const configured = vscode.workspace.getConfiguration("agentTour").get<string>("tourDirectory", ".agent-tours");
-    const relative = isSafeRelativePath(configured) ? configured : ".agent-tours";
-    if (relative !== configured) {
-      this.log.warn(`agentTour.tourDirectory "${configured}" is not workspace-relative; using .agent-tours`);
+    const normalized = configured.replace(/\\/g, "/").replace(/\/+$/, "");
+    // Glob characters would change the watcher pattern, so they are not allowed.
+    const relative = isSafeRelativePath(normalized) && !/[*?[\]{}!]/.test(normalized) ? normalized : ".agent-tours";
+    if (relative !== normalized) {
+      this.log.warn(`agentTour.tourDirectory "${configured}" must be a plain workspace-relative folder; using .agent-tours`);
     }
     return (vscode.workspace.workspaceFolders ?? []).map((folder) => ({
       folder: folder.uri,
       directory: vscode.Uri.joinPath(folder.uri, relative),
+      relative,
     }));
   }
 
@@ -151,6 +157,12 @@ export class TourStore implements vscode.Disposable {
     fromWatcher: boolean,
   ): Promise<LoadedTour | InvalidTour | undefined> {
     const fileId = path.posix.basename(uri.path, ".json");
+    if (!(await exists(uri))) {
+      // A late create/change event can arrive after the file was deleted; that is a
+      // removal, not an invalid tour.
+      this.remove(uri);
+      return undefined;
+    }
     const result = await readAndValidate(uri, fileId).catch((error: unknown) => [String(error)]);
     if (Array.isArray(result)) {
       const invalid = { uri, errors: result };
@@ -175,10 +187,12 @@ export class TourStore implements vscode.Disposable {
   }
 
   private remove(uri: vscode.Uri): void {
+    clearTimeout(this.pending.get(uri.toString()));
+    this.pending.delete(uri.toString());
     const id = this.forget(uri);
-    this.invalid.delete(uri.toString());
-    if (id) {
-      this.log.info(`Tour "${id}" removed`);
+    const wasInvalid = this.invalid.delete(uri.toString());
+    if (id || wasInvalid) {
+      this.log.info(`Tour file ${uri.fsPath} removed`);
       this.changeEmitter.fire({ type: "removed", id, uri });
     }
   }

@@ -2,7 +2,7 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { SAMPLE_ID, SAMPLE_TOUR, TOURS_DIR, api, resetEditor, setAutoStart, waitFor } from "./helpers";
+import { SAMPLE_ID, SAMPLE_TOUR, TOURS_DIR, WORKSPACE_DIR, api, resetEditor, setAutoStart, waitFor } from "./helpers";
 
 const WATCH_ID = "watch-test";
 const watchFile = path.join(TOURS_DIR, `${WATCH_ID}.json`);
@@ -27,6 +27,17 @@ describe("TourStore", () => {
       assert.ok(invalid.errors.length > 0);
     }
   });
+
+  it("treats a late watcher event for a deleted file as a removal, not an invalid tour", async () => {
+    // Regression: a change event delivered after deletion used to record the missing
+    // file as invalid. Drive the private loader directly to make the race deterministic.
+    const { store } = await api();
+    const gone = vscode.Uri.file(path.join(TOURS_DIR, "deleted-before-load.json"));
+    const folder = vscode.workspace.workspaceFolders![0].uri;
+    const before = store.invalidTours().length;
+    await (store as unknown as { load(u: vscode.Uri, f: vscode.Uri, w: boolean): Promise<unknown> }).load(gone, folder, true);
+    assert.strictEqual(store.invalidTours().length, before);
+  });
 });
 
 describe("Auto-start and triggers", () => {
@@ -48,9 +59,36 @@ describe("Auto-start and triggers", () => {
       () => player.snapshot().tourId === WATCH_ID && player.snapshot().status === "playing",
       2000,
       "auto-start",
+      // Distinguishes "watcher never delivered the event" from "seen but not started".
+      () => `store has tour: ${!!store.get(WATCH_ID)}, player: ${JSON.stringify(player.snapshot())}`,
     );
     assert.ok(store.get(WATCH_ID));
     console.log(`      auto-start latency: ${elapsed} ms`);
+  });
+
+  it("sees a tour written immediately after the watchers are recreated", async () => {
+    // Regression: watchers created on the tour directory itself missed events during
+    // their startup, so a write right after reload() was sometimes never seen.
+    const { store } = await api();
+    await store.reload();
+    writeWatchTour();
+    await waitFor(() => !!store.get(WATCH_ID), 2000, "store to see the file");
+  });
+
+  it("sees tours in a tour directory created after activation", async () => {
+    const { store } = await api();
+    const lateDir = path.join(WORKSPACE_DIR, "late-tours");
+    await vscode.workspace.getConfiguration("agentTour").update("tourDirectory", "late-tours", vscode.ConfigurationTarget.Global);
+    try {
+      await store.reload();
+      fs.mkdirSync(lateDir);
+      fs.writeFileSync(path.join(lateDir, "late-tour.json"), JSON.stringify({ ...SAMPLE_TOUR, id: "late-tour" }));
+      await waitFor(() => !!store.get("late-tour"), 2000, "tour in the new directory");
+    } finally {
+      fs.rmSync(lateDir, { recursive: true, force: true });
+      await vscode.workspace.getConfiguration("agentTour").update("tourDirectory", undefined, vscode.ConfigurationTarget.Global);
+      await store.reload();
+    }
   });
 
   it("reloads the playing tour in place when its file changes", async () => {
