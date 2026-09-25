@@ -1,8 +1,10 @@
 import * as assert from "assert";
+import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
 import type { TourNode } from "../src/tourTree";
 import type { Tour } from "../src/types";
-import { SAMPLE_ID, SAMPLE_TOUR, api, resetEditor } from "./helpers";
+import { SAMPLE_ID, SAMPLE_TOUR, WORKSPACE_DIR, api, resetEditor } from "./helpers";
 
 function variant(id: string, edit: (tour: Tour) => void): Tour {
   const tour = structuredClone(SAMPLE_TOUR);
@@ -57,6 +59,37 @@ describe("Anchor resolution in the player", () => {
     assert.strictEqual(snapshot.index, 2);
     assert.strictEqual(snapshot.stepStatus, "exact");
     assert.strictEqual(player.stepStatus("missing-file", 1), "missing");
+  });
+});
+
+describe("Symlinks", () => {
+  const link = path.join(WORKSPACE_DIR, "linked");
+  let outside: string;
+
+  before(() => {
+    fs.rmSync(link, { recursive: true, force: true }); // Left behind by a killed run.
+    // Same drive as the workspace, so the relative-path check is what must catch it
+    // (across drives path.relative returns an absolute path and hides a broken check).
+    outside = fs.mkdtempSync(path.join(path.dirname(WORKSPACE_DIR), "outside-"));
+    fs.writeFileSync(path.join(outside, "secret.txt"), "export const secretValue = 1;\n");
+    fs.symlinkSync(outside, link, "junction");
+  });
+
+  after(async () => {
+    await resetEditor();
+    fs.rmSync(link, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+
+  it("refuses to open a step file that resolves outside the workspace", async () => {
+    const { player } = await api();
+    const tour = variant("symlink-escape", (t) => {
+      t.steps[0] = { ...t.steps[0], file: "linked/secret.txt", range: { start: 1, end: 1 }, anchor: "export const secretValue" };
+    });
+    await player.start(tour, folder());
+    assert.strictEqual(player.snapshot().stepStatus, "missing");
+    const opened = vscode.window.visibleTextEditors.map((e) => e.document.uri.fsPath);
+    assert.ok(!opened.some((p) => p.includes("secret.txt")), JSON.stringify(opened));
   });
 });
 

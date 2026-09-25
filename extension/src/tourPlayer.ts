@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { formatDelta, resolveStep } from "./anchorResolver";
 import { ControlBar } from "./controlBar";
-import { resolveWorkspaceFile } from "./paths";
+import { isInsideAfterSymlinks, resolveWorkspaceFile } from "./paths";
 import { DimMode, SpotlightOptions, SpotlightRenderer } from "./spotlightRenderer";
 import { StepCard, renderCard } from "./stepCard";
 import { StepStatus, Tour } from "./types";
@@ -170,13 +170,14 @@ export class TourPlayer implements vscode.Disposable {
     this.state = { ...this.state, index };
 
     const uri = resolveWorkspaceFile(folder, step.file);
-    const document = uri ? await openDocument(uri) : undefined;
+    const confined = uri !== undefined && (await isInsideAfterSymlinks(folder, uri));
+    const document = uri && confined ? await openDocument(uri) : undefined;
     if (navigation !== this.navigation) {
       return;
     }
     if (!uri || !document) {
       // Keep the tour navigable, but never leave the previous step's highlight on screen.
-      this.log.error(`Step ${index + 1}: cannot open "${step.file}"`);
+      this.log.error(`Step ${index + 1}: cannot open "${step.file}" (missing, or it resolves outside the workspace)`);
       this.statuses.set(index, "missing");
       this.startLine = undefined;
       this.renderer.clear();
@@ -185,7 +186,7 @@ export class TourPlayer implements vscode.Disposable {
       this.changeEmitter.fire();
       await hideHover(this.log);
       void vscode.window.showWarningMessage(
-        `Agent Tour: step ${index + 1} refers to ${step.file}, which no longer exists. Use Next or Previous to continue.`,
+        `Agent Tour: step ${index + 1} refers to ${step.file}, which cannot be opened (it is missing, or it resolves outside the workspace). Use Next or Previous to continue.`,
       );
       return;
     }

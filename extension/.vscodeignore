@@ -8,3 +8,6 @@ out/test/**
 .vscode-test.mjs
 tsconfig.json
 *.vsix
+skill-src/**
+scripts/**
+out/skill-src/**

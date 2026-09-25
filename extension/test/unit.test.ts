@@ -1,5 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
+import { relativeLeavesRoot } from "../src/pathRules";
 import { resolveWorkspaceFile } from "../src/paths";
 import { clampOpacity } from "../src/spotlightRenderer";
 import { CARD_COMMANDS, renderCard, sanitizeDescription } from "../src/stepCard";
@@ -15,11 +16,29 @@ describe("resolveWorkspaceFile", () => {
     assert.strictEqual(resolveWorkspaceFile(folder, "src\\b.ts")?.path, "/work/repo/src/b.ts");
   });
 
+  it("accepts names that merely start with two dots", () => {
+    assert.strictEqual(resolveWorkspaceFile(folder, "..config/a.ts")?.path, "/work/repo/..config/a.ts");
+  });
+
   for (const bad of ["", "/etc/passwd", "C:\\Windows\\win.ini", "c:/x", "../x", "a/../../x", "a\\..\\..\\x", "a\0b"]) {
     it(`rejects ${JSON.stringify(bad)}`, () => {
       assert.strictEqual(resolveWorkspaceFile(folder, bad), undefined);
     });
   }
+});
+
+describe("relativeLeavesRoot", () => {
+  it("detects parent segments with either separator", () => {
+    for (const out of ["..", "../x", "..\\x", "..\\..\\x"]) {
+      assert.strictEqual(relativeLeavesRoot(out), true, out);
+    }
+  });
+
+  it("allows names that start with two dots", () => {
+    for (const inside of ["", "x", "..config", "..config/x", "..config\\x"]) {
+      assert.strictEqual(relativeLeavesRoot(inside), false, inside);
+    }
+  });
 });
 
 describe("clampOpacity", () => {
