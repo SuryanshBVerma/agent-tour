@@ -15,6 +15,16 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
   `schema/tour.schema.json` is a build-time copy of the extension schema. Never edit the copy.
 - `docs/`: plan and decision log.
 
+## Commands (run in `extension/`)
+- `npm run compile` builds with tsc into `out/`.
+- `npm test` runs mocha tests in VS Code 1.138.0 (`.vscode-test.mjs`) against
+  `test/fixtures/spike-workspace`.
+- To try it manually, press F5 and choose "Run Agent Tour (spike workspace)" from the repo root.
+
+## Status
+Phase 0 spike: the code is done, and the manual checks in `docs/phase0-spike.md` are
+pending. `TourStore`, `AnchorResolver`, `TourTree` and the skill are not started yet.
+
 ## Tour contract (summary)
 - Lines are 1-based and inclusive. `file` is workspace-relative; reject absolute paths and `..`.
 - `id` must match `^[a-z0-9][a-z0-9-]{0,80}$`.
