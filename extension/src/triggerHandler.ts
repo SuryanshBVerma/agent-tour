@@ -65,7 +65,7 @@ export class TriggerHandler implements vscode.UriHandler, vscode.Disposable {
     if (!found) {
       void vscode.window.showWarningMessage(`Agent Tour: no tour with id "${id}".`);
     } else if ("errors" in found) {
-      showInvalid(found.uri, this.log);
+      showInvalid(found.folder, this.log);
     } else {
       await this.player.start(found.tour, found.folder);
     }
@@ -91,7 +91,7 @@ export class TriggerHandler implements vscode.UriHandler, vscode.Disposable {
     }
     if (change.type === "invalid") {
       if (autoStartMode() !== "off") {
-        showInvalid(change.invalid.uri, this.log);
+        showInvalid(change.invalid.folder, this.log);
       }
       return;
     }
@@ -168,10 +168,10 @@ function autoStartMode(): AutoStartMode {
   return vscode.workspace.getConfiguration("agentTour").get<AutoStartMode>("autoStart", "prompt");
 }
 
-function showInvalid(uri: vscode.Uri, log: vscode.LogOutputChannel): void {
-  const name = vscode.workspace.asRelativePath(uri);
+function showInvalid(folder: vscode.Uri, log: vscode.LogOutputChannel): void {
+  const name = vscode.workspace.getWorkspaceFolder(folder)?.name ?? folder.fsPath;
   void vscode.window
-    .showWarningMessage(`Agent Tour: ${name} is not a valid tour.`, "Show Errors")
+    .showWarningMessage(`Agent Tour: the latest tour for ${name} is not valid.`, "Show Errors")
     .then((choice) => {
       if (choice === "Show Errors") {
         log.show(true);

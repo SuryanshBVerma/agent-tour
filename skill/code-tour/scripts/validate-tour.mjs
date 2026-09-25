@@ -2980,7 +2980,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve2.call(this, root, ref);
+      let _sch = resolve3.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3007,7 +3007,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve2(root, ref) {
+    function resolve3(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3258,8 +3258,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path2) {
-      let input = path2;
+    function removeDotSegments(path3) {
+      let input = path3;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3668,8 +3668,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path2 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path2 && path2 !== "/" ? path2 : void 0;
+        const path3 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path3 && path3 !== "/" ? path3 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -3837,7 +3837,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve2(baseURI, relativeURI, options) {
+    function resolve3(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -4206,7 +4206,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve2,
+      resolve: resolve3,
       resolveComponent,
       equal,
       serialize,
@@ -6879,8 +6879,8 @@ var require_ajv = __commonJS({
 });
 
 // skill-src/validate-tour.ts
-import * as fs from "fs";
-import * as path from "path";
+import * as fs2 from "fs";
+import * as path2 from "path";
 
 // src/pathRules.ts
 function isSafeRelativePath(relativePath) {
@@ -7009,6 +7009,80 @@ function lintOverlaps(tour, error) {
   }
 }
 
+// src/tourLocation.ts
+import { createHash } from "crypto";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+function tourRoot() {
+  const user = (safeUserName() || "user").toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 64);
+  return path.join(realTempDir(), `agent-tours-${user}`);
+}
+function realTempDir() {
+  const tmp = os.tmpdir();
+  try {
+    return fs.realpathSync.native(tmp);
+  } catch {
+    return tmp;
+  }
+}
+function workspaceKey(workspaceRoot) {
+  let resolved = path.resolve(workspaceRoot);
+  try {
+    resolved = fs.realpathSync.native(resolved);
+  } catch {
+  }
+  let normalized = resolved.replace(/\\/g, "/").replace(/\/+$/, "");
+  if (process.platform === "win32" || process.platform === "darwin") {
+    normalized = normalized.toLowerCase();
+  }
+  return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
+}
+function tourSlotPath(workspaceRoot) {
+  return path.join(tourRoot(), `${workspaceKey(workspaceRoot)}.json`);
+}
+function tourDraftPath(workspaceRoot) {
+  return path.join(tourRoot(), "drafts", `${workspaceKey(workspaceRoot)}.json`);
+}
+function ensureTourRoot() {
+  const root = tourRoot();
+  fs.mkdirSync(path.join(root, "drafts"), { recursive: true, mode: 448 });
+  return root;
+}
+function tourRootProblem(root = tourRoot()) {
+  if (process.platform === "win32" || typeof process.getuid !== "function") {
+    return void 0;
+  }
+  let stat;
+  try {
+    stat = fs.lstatSync(root);
+  } catch {
+    return void 0;
+  }
+  if (!stat.isDirectory()) {
+    return `${root} is not a directory`;
+  }
+  if (stat.uid !== process.getuid()) {
+    return `${root} is owned by another user`;
+  }
+  if ((stat.mode & 18) !== 0) {
+    return `${root} is writable by other users`;
+  }
+  return void 0;
+}
+function writeTourAtomically(target, content) {
+  const temp = `${target}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(temp, content, { encoding: "utf8", mode: 384 });
+  fs.renameSync(temp, target);
+}
+function safeUserName() {
+  try {
+    return os.userInfo().username;
+  } catch {
+    return process.env.USER ?? process.env.USERNAME ?? "";
+  }
+}
+
 // src/tourValidation.ts
 var import_ajv = __toESM(require_ajv());
 
@@ -7111,17 +7185,32 @@ function formatError(error) {
 }
 
 // skill-src/validate-tour.ts
+var USAGE = [
+  "usage: node validate-tour.mjs --where [--root <workspace>]",
+  "       node validate-tour.mjs <draft.json> [--publish] [--root <workspace>]"
+].join("\n");
 function main(argv) {
   const args = parseArgs(argv);
-  if (!args) {
-    console.error("usage: node validate-tour.mjs <path/to/.agent-tours/<id>.json> [--root <workspace root>]");
+  if (!args || !args.where && !args.tourPath || args.where && (args.tourPath || args.publish)) {
+    console.error(USAGE);
     return 2;
   }
-  const tourPath = path.resolve(args.tourPath);
-  const root = path.resolve(args.root ?? process.cwd());
+  const root = path2.resolve(args.root ?? process.cwd());
+  if (args.where) {
+    const problem = tourRootProblem();
+    if (problem) {
+      console.error(`refusing to use the tour folder: ${problem}`);
+      return 2;
+    }
+    ensureTourRoot();
+    console.log(`draft: ${tourDraftPath(root)}`);
+    console.log(`slot:  ${tourSlotPath(root)}`);
+    return 0;
+  }
+  const tourPath = path2.resolve(args.tourPath);
   let text;
   try {
-    text = fs.readFileSync(tourPath, "utf8");
+    text = fs2.readFileSync(tourPath, "utf8");
   } catch (error) {
     console.error(`cannot read ${tourPath}: ${error.message}`);
     return 2;
@@ -7133,51 +7222,76 @@ function main(argv) {
     report([{ severity: "error", message: `not valid JSON: ${error.message}` }], void 0);
     return 1;
   }
-  const fileId = path.basename(tourPath, ".json");
-  const result = validateTour(data, fileId);
+  const result = validateTour(data);
   if (!result.ok) {
     report(result.errors.map((message) => ({ severity: "error", message })), void 0);
     return 1;
   }
   const messages = lintTour(result.tour, (relative2) => readWorkspaceFile(root, relative2));
-  if (path.basename(path.dirname(tourPath)) !== ".agent-tours") {
+  if (isInside(root, tourPath)) {
     messages.unshift({
       severity: "warning",
-      message: "tour is not in a folder named .agent-tours; the extension only finds it there unless agentTour.tourDirectory is changed"
+      message: "the draft is inside the workspace; write it to the draft path from --where so it is not committed"
     });
   }
   report(messages, result.tour);
-  return messages.some((m) => m.severity === "error") ? 1 : 0;
+  if (messages.some((m) => m.severity === "error")) {
+    return 1;
+  }
+  if (args.publish) {
+    const problem = tourRootProblem();
+    if (problem) {
+      console.error(`refusing to publish: ${problem}`);
+      return 2;
+    }
+    ensureTourRoot();
+    const slot = tourSlotPath(root);
+    writeTourAtomically(slot, `${JSON.stringify(result.tour, null, 2)}
+`);
+    if (path2.resolve(tourPath) === path2.resolve(tourDraftPath(root))) {
+      fs2.rmSync(tourPath, { force: true });
+    }
+    console.log(`PUBLISHED: ${slot} (replaces this workspace's previous tour)`);
+  }
+  return 0;
 }
 function parseArgs(argv) {
-  let tourPath;
-  let root;
+  const args = { where: false, publish: false };
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--root") {
-      root = argv[++i];
-      if (!root) {
+    const arg = argv[i];
+    if (arg === "--root") {
+      args.root = argv[++i];
+      if (!args.root) {
         return void 0;
       }
-    } else if (!tourPath && !argv[i].startsWith("-")) {
-      tourPath = argv[i];
+    } else if (arg === "--where") {
+      args.where = true;
+    } else if (arg === "--publish") {
+      args.publish = true;
+    } else if (!args.tourPath && !arg.startsWith("-")) {
+      args.tourPath = arg;
     } else {
       return void 0;
     }
   }
-  return tourPath ? { tourPath, root } : void 0;
+  return args;
+}
+function isInside(root, target) {
+  const relative2 = path2.relative(root, target);
+  return !relativeLeavesRoot(relative2) && !path2.isAbsolute(relative2);
 }
 function readWorkspaceFile(root, relative2) {
   if (!isSafeRelativePath(relative2)) {
     return void 0;
   }
   try {
-    const realRoot = fs.realpathSync(root);
-    const full = fs.realpathSync(path.resolve(root, relative2));
-    const inside = path.relative(realRoot, full);
-    if (relativeLeavesRoot(inside) || path.isAbsolute(inside)) {
+    const realRoot = fs2.realpathSync(root);
+    const full = fs2.realpathSync(path2.resolve(root, relative2));
+    const inside = path2.relative(realRoot, full);
+    if (relativeLeavesRoot(inside) || path2.isAbsolute(inside)) {
       return void 0;
     }
-    return fs.statSync(full).isFile() ? fs.readFileSync(full, "utf8") : void 0;
+    return fs2.statSync(full).isFile() ? fs2.readFileSync(full, "utf8") : void 0;
   } catch {
     return void 0;
   }

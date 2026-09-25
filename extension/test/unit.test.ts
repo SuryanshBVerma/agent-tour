@@ -6,7 +6,7 @@ import { clampOpacity } from "../src/spotlightRenderer";
 import { CARD_COMMANDS, renderCard, sanitizeDescription } from "../src/stepCard";
 import { parseStartUri } from "../src/triggerHandler";
 import { validateTour } from "../src/tourValidation";
-import { SAMPLE_ID, SAMPLE_TOUR, readFixtureTour } from "./helpers";
+import { SAMPLE_TOUR, readFixtureTour } from "./helpers";
 
 describe("resolveWorkspaceFile", () => {
   const folder = vscode.Uri.file("/work/repo");
@@ -74,24 +74,55 @@ const ZERO = new vscode.Range(0, 0, 0, 0);
 const EXACT = { status: "exact", range: ZERO } as const;
 
 describe("step card", () => {
-  it("trusts only this extension's commands and disables HTML", () => {
-    const md = renderCard(SAMPLE_TOUR, 0, EXACT);
-    assert.deepStrictEqual(md.isTrusted, { enabledCommands: [...CARD_COMMANDS] });
-    assert.strictEqual(md.supportHtml, false);
+  it("keeps agent text out of every part that allows HTML or commands", () => {
+    const tour = structuredClone(SAMPLE_TOUR);
+    tour.steps[0].title = "TITLE-MARKER <b>x</b>";
+    tour.steps[0].description = "DESC-MARKER [x](command:workbench.action.quit) <img src=x>";
+    const { header, body, footer } = renderCard(tour, 0, EXACT);
+
+    // Header may use HTML (for the badge) but is never trusted and holds no agent text.
+    assert.strictEqual(header.supportHtml, true);
+    assert.ok(!header.isTrusted);
+    assert.ok(!/MARKER/.test(header.value), header.value);
+
+    // Body holds the agent text: no HTML, no commands at all.
+    assert.strictEqual(body.supportHtml, false);
+    assert.ok(!body.isTrusted);
+    assert.ok(body.value.includes("TITLE-MARKER") && body.value.includes("DESC-MARKER"));
+
+    // Footer runs only this extension's navigation commands, and holds no agent text.
+    assert.deepStrictEqual(footer.isTrusted, { enabledCommands: [...CARD_COMMANDS] });
+    assert.strictEqual(footer.supportHtml, false);
+    assert.ok(!/MARKER/.test(footer.value));
+  });
+
+  it("colors the kind badge with the kind's theme color", () => {
+    for (const [i, kind] of [[0, "change"], [1, "context"], [2, "risk"], [3, "decision"]] as const) {
+      const { header } = renderCard(SAMPLE_TOUR, i, EXACT);
+      assert.strictEqual(SAMPLE_TOUR.steps[i].kind, kind);
+      // Exactly the style shape VS Code's hover sanitizer keeps.
+      assert.ok(
+        header.value.includes(`<span style="color:var(--vscode-editor-background);background-color:var(--vscode-agentTour-${kind}Border);">`),
+        header.value,
+      );
+    }
   });
 
   it("shows no Previous on the first step and Finish on the last", () => {
-    const first = renderCard(SAMPLE_TOUR, 0, EXACT).value;
-    const last = renderCard(SAMPLE_TOUR, SAMPLE_TOUR.steps.length - 1, EXACT).value;
-    assert.ok(!first.includes("command:agentTour.previous"));
-    assert.ok(first.includes(`Step 1 of ${SAMPLE_TOUR.steps.length}`));
-    assert.ok(last.includes("Finish"));
-    assert.ok(last.includes("command:agentTour.previous"));
+    const first = renderCard(SAMPLE_TOUR, 0, EXACT);
+    const last = renderCard(SAMPLE_TOUR, SAMPLE_TOUR.steps.length - 1, EXACT);
+    assert.ok(!first.footer.value.includes("command:agentTour.previous"));
+    assert.ok(first.header.value.includes(`Step 1 of ${SAMPLE_TOUR.steps.length}`));
+    assert.strictEqual(first.label, `Step 1 of ${SAMPLE_TOUR.steps.length} · Change`);
+    assert.ok(last.footer.value.includes("Finish"));
+    assert.ok(last.footer.value.includes("command:agentTour.previous"));
   });
 
   it("marks stale and relocated steps", () => {
-    assert.ok(renderCard(SAMPLE_TOUR, 0, { status: "stale", range: ZERO }).value.includes("Stale"));
-    const moved = renderCard(SAMPLE_TOUR, 0, { status: "relocated", range: ZERO, delta: -3 }).value;
+    const stale = renderCard(SAMPLE_TOUR, 0, { status: "stale", range: ZERO });
+    assert.ok(stale.header.value.includes("agentTour-staleBorder"), stale.header.value);
+    assert.ok(stale.label.endsWith("· Stale"));
+    const moved = renderCard(SAMPLE_TOUR, 0, { status: "relocated", range: ZERO, delta: -3 }).header.value;
     assert.ok(moved.includes("moved 3 lines up"), moved);
   });
 
@@ -102,17 +133,17 @@ describe("step card", () => {
 
 describe("validateTour", () => {
   it("accepts the sample tour", () => {
-    const result = validateTour(SAMPLE_TOUR, SAMPLE_ID);
+    const result = validateTour(SAMPLE_TOUR);
     assert.ok(result.ok, JSON.stringify(result));
   });
 
   it("rejects traversal paths", () => {
-    const result = validateTour(readFixtureTour("invalid-traversal"), "invalid-traversal");
+    const result = validateTour(readFixtureTour("invalid-traversal"));
     assert.ok(!result.ok && result.errors.some((e) => e.startsWith("/steps/0/file")), JSON.stringify(result));
   });
 
   it("reports every schema error at once", () => {
-    const result = validateTour(readFixtureTour("invalid-schema"), "invalid-schema");
+    const result = validateTour(readFixtureTour("invalid-schema"));
     assert.ok(!result.ok);
     const text = result.errors.join("\n");
     assert.match(text, /unknown property "extra"/);
@@ -124,11 +155,6 @@ describe("validateTour", () => {
     tour.steps[0].range = { start: 10, end: 9 };
     const result = validateTour(tour);
     assert.ok(!result.ok && result.errors[0].includes("before start"), JSON.stringify(result));
-  });
-
-  it("rejects an id that does not match the file name", () => {
-    const result = validateTour(readFixtureTour("invalid-id-mismatch"), "invalid-id-mismatch");
-    assert.ok(!result.ok && result.errors[0].includes("must match the file name"), JSON.stringify(result));
   });
 
   for (const bad of ["/abs.ts", "C:/x.ts", "a/../../x.ts", "..\\x.ts"]) {

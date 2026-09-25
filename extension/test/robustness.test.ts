@@ -4,7 +4,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import type { TourNode } from "../src/tourTree";
 import type { Tour } from "../src/types";
-import { SAMPLE_ID, SAMPLE_TOUR, WORKSPACE_DIR, api, resetEditor } from "./helpers";
+import { SAMPLE_ID, SAMPLE_TOUR, WORKSPACE_DIR, api, resetEditor, useSampleTour } from "./helpers";
 
 function variant(id: string, edit: (tour: Tour) => void): Tour {
   const tour = structuredClone(SAMPLE_TOUR);
@@ -94,12 +94,13 @@ describe("Symlinks", () => {
 });
 
 describe("TourTree", () => {
+  beforeEach(useSampleTour);
   afterEach(resetEditor);
 
-  it("lists valid tours with their steps, then invalid files", async () => {
+  it("lists the workspace's current tour with its steps", async () => {
     const { tree } = await api();
     const roots = tree.getChildren();
-    assert.deepStrictEqual(roots.map((n) => n.type), ["tour", "invalid", "invalid", "invalid", "invalid"]);
+    assert.deepStrictEqual(roots.map((n) => n.type), ["tour"]);
     const steps = tree.getChildren(roots[0]);
     assert.strictEqual(steps.length, SAMPLE_TOUR.steps.length);
 

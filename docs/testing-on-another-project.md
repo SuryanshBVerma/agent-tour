@@ -20,9 +20,15 @@ code --uninstall-extension trivium.agent-tour
 To pick up changes made here, rebuild the package and reinstall it (`--force` overwrites
 the same version).
 
+**VS Code profiles:** `--install-extension` installs into the **Default** profile only.
+If the project opens in another profile (the gear icon at the bottom left shows which),
+install into that profile too, e.g. `--profile "Trivium"`. Otherwise start links fail with
+*"The extension 'trivium.agent-tour' cannot be installed because it was not found"*.
+
 ## 2. Get a tour into the project
-Tours live in `<project>/.agent-tours/<id>.json`. You'll probably want to add `.agent-tours/`
-to that project's `.gitignore`.
+Tours never go into the repository. The skill publishes each tour to a per-user temp folder
+(`<temp>/agent-tours-<user>/`) with one slot per workspace, and a new tour replaces the
+previous one. If an earlier version left a `.agent-tours/` folder in your project, delete it.
 
 Install the `code-tour` skill so Claude Code writes and validates tours itself. Choose one:
 

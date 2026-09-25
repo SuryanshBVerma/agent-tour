@@ -7,7 +7,20 @@
       "script": "compile",
       "path": "extension",
       "problemMatcher": "$tsc",
-      "group": { "kind": "build", "isDefault": true }
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "agent-tour: publish sample tour",
+      "type": "npm",
+      "script": "sample-tour",
+      "path": "extension",
+      "dependsOn": [
+        "agent-tour: compile"
+      ],
+      "problemMatcher": []
     }
   ]
 }

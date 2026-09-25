@@ -3,6 +3,7 @@ import { formatDelta, resolveStep } from "./anchorResolver";
 import { ControlBar } from "./controlBar";
 import { isInsideAfterSymlinks, resolveWorkspaceFile } from "./paths";
 import { DimMode, SpotlightOptions, SpotlightRenderer } from "./spotlightRenderer";
+import { InlineCard } from "./inlineCard";
 import { StepCard, renderCard } from "./stepCard";
 import { StepStatus, Tour } from "./types";
 
@@ -23,7 +24,11 @@ export interface PlayerSnapshot {
   startLine?: number;
   /** Decorated range count per visible document path; empty after cleanup. */
   decorated: Record<string, number>;
+  /** 0-based line the inline card is anchored on; undefined when none is shown. */
+  inlineCardLine?: number;
 }
+
+export type CardStyle = "inline" | "hover";
 
 /** Delay before showing the card so the editor has finished revealing the range. */
 const HOVER_DELAY_MS = 150;
@@ -33,6 +38,7 @@ export class TourPlayer implements vscode.Disposable {
   private state: PlayerState = { status: "idle" };
   private readonly renderer: SpotlightRenderer;
   private readonly card: StepCard;
+  private readonly inlineCard = new InlineCard();
   private readonly controlBar = new ControlBar();
   private readonly subscriptions: vscode.Disposable[] = [];
   private readonly changeEmitter = new vscode.EventEmitter<void>();
@@ -55,6 +61,9 @@ export class TourPlayer implements vscode.Disposable {
         if (event.affectsConfiguration("agentTour.dimMode") || event.affectsConfiguration("agentTour.dimOpacity")) {
           this.renderer.configure(readSpotlightOptions());
         }
+        if (event.affectsConfiguration("agentTour.cardStyle") && this.state.status === "playing") {
+          void this.goto(this.state.index, { reveal: false });
+        }
       }),
     );
   }
@@ -75,6 +84,7 @@ export class TourPlayer implements vscode.Disposable {
           total: this.state.tour.steps.length,
           stepStatus: this.statuses.get(this.state.index),
           startLine: this.startLine,
+          inlineCardLine: this.inlineCard.anchor()?.line,
         };
     }
   }
@@ -151,6 +161,7 @@ export class TourPlayer implements vscode.Disposable {
     this.startLine = undefined;
     this.renderer.clear();
     this.card.clear();
+    this.inlineCard.clear();
     this.controlBar.hide();
     this.changeEmitter.fire();
     await vscode.commands.executeCommand("setContext", "agentTour.active", false);
@@ -182,6 +193,7 @@ export class TourPlayer implements vscode.Disposable {
       this.startLine = undefined;
       this.renderer.clear();
       this.card.clear();
+      this.inlineCard.clear();
       this.controlBar.update(tour, index, "missing");
       this.changeEmitter.fire();
       await hideHover(this.log);
@@ -206,15 +218,31 @@ export class TourPlayer implements vscode.Disposable {
     }
 
     const { range } = resolution;
-    this.renderer.show(editor, range, step.kind, index + 1, resolution.status === "stale");
-    this.card.set(uri, range, renderCard(tour, index, resolution));
+    const stale = resolution.status === "stale";
+    const parts = renderCard(tour, index, resolution);
+    const style = readCardStyle();
+    this.renderer.show(editor, range, step.kind, index + 1, stale);
+    if (style === "inline") {
+      this.card.clear();
+      this.inlineCard.show(uri, range, parts, index + 1, step.kind, stale);
+    } else {
+      this.inlineCard.clear();
+      this.card.set(uri, range, parts);
+    }
     this.controlBar.update(tour, index, resolution.status);
     this.changeEmitter.fire();
 
     const cursor = quietPosition(document.lineAt(range.start.line));
     editor.selection = new vscode.Selection(cursor, cursor);
     if (reveal) {
-      editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+      // Include the line the inline card hangs from, so card and code land on screen together.
+      const top = style === "inline" ? Math.max(range.start.line - 1, 0) : range.start.line;
+      editor.revealRange(new vscode.Range(top, 0, range.end.line, 0), vscode.TextEditorRevealType.InCenter);
+    }
+    if (style === "inline") {
+      await hideHover(this.log);
+      this.log.info(`Step ${index + 1}/${tour.steps.length}: ${step.file}:${range.start.line + 1}-${range.end.line + 1}`);
+      return;
     }
 
     await delay(HOVER_DELAY_MS);
@@ -229,11 +257,16 @@ export class TourPlayer implements vscode.Disposable {
     this.navigation++;
     this.renderer.dispose();
     this.card.dispose();
+    this.inlineCard.dispose();
     this.controlBar.dispose();
     for (const subscription of this.subscriptions) {
       subscription.dispose();
     }
   }
+}
+
+function readCardStyle(): CardStyle {
+  return vscode.workspace.getConfiguration("agentTour").get<CardStyle>("cardStyle", "inline") === "hover" ? "hover" : "inline";
 }
 
 function readSpotlightOptions(): SpotlightOptions {

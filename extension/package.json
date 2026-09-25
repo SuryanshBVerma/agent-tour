@@ -20,10 +20,9 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "In untrusted workspaces tours never start automatically, start links are refused, and workspace settings cannot change auto-start or the tour folder.",
+      "description": "In untrusted workspaces tours never start automatically, start links are refused, and workspace settings cannot turn on auto-start.",
       "restrictedConfigurations": [
-        "agentTour.autoStart",
-        "agentTour.tourDirectory"
+        "agentTour.autoStart"
       ]
     }
   },
@@ -45,13 +44,15 @@
         "command": "agentTour.next",
         "title": "Next Step",
         "category": "Agent Tour",
-        "enablement": "agentTour.active"
+        "enablement": "agentTour.active",
+        "icon": "$(chevron-right)"
       },
       {
         "command": "agentTour.previous",
         "title": "Previous Step",
         "category": "Agent Tour",
-        "enablement": "agentTour.active"
+        "enablement": "agentTour.active",
+        "icon": "$(chevron-left)"
       },
       {
         "command": "agentTour.showCard",
@@ -105,7 +106,7 @@
             "on"
           ],
           "default": "prompt",
-          "description": "Whether a newly written tour starts automatically."
+          "description": "Whether a newly published tour starts automatically."
         },
         "agentTour.dimOpacity": {
           "type": "number",
@@ -124,10 +125,18 @@
           "default": "opacity",
           "description": "How code outside the current step is dimmed. 'opacity' relies on undocumented decoration CSS; 'wash' is the background-tint fallback."
         },
-        "agentTour.tourDirectory": {
+        "agentTour.cardStyle": {
           "type": "string",
-          "default": ".agent-tours",
-          "description": "Workspace-relative folder that holds tour files."
+          "enum": [
+            "inline",
+            "hover"
+          ],
+          "enumDescriptions": [
+            "A card above the step that stays open until you move on.",
+            "A hover card at the step; closes when you click elsewhere (Alt+H reopens it)."
+          ],
+          "default": "inline",
+          "description": "How each step’s explanation is shown."
         }
       }
     },
@@ -144,7 +153,7 @@
       },
       {
         "id": "agentTour.changeBorder",
-        "description": "Left border of a 'change' step.",
+        "description": "Left border and badge of a change step.",
         "defaults": {
           "dark": "#3fb950",
           "light": "#1a7f37",
@@ -164,7 +173,7 @@
       },
       {
         "id": "agentTour.contextBorder",
-        "description": "Left border of a 'context' step.",
+        "description": "Left border and badge of a context step.",
         "defaults": {
           "dark": "#58a6ff",
           "light": "#0969da",
@@ -184,7 +193,7 @@
       },
       {
         "id": "agentTour.riskBorder",
-        "description": "Left border of a 'risk' step.",
+        "description": "Left border and badge of a risk step.",
         "defaults": {
           "dark": "#f85149",
           "light": "#cf222e",
@@ -196,20 +205,20 @@
         "id": "agentTour.decisionBackground",
         "description": "Background of a 'decision' step.",
         "defaults": {
-          "dark": "#a371f726",
-          "light": "#8250df1a",
-          "highContrast": "#a371f740",
-          "highContrastLight": "#8250df40"
+          "dark": "#d2992226",
+          "light": "#9a67001a",
+          "highContrast": "#d2992240",
+          "highContrastLight": "#9a670040"
         }
       },
       {
         "id": "agentTour.decisionBorder",
-        "description": "Left border of a 'decision' step.",
+        "description": "Left border and badge of a decision step (needs the reviewer’s judgement).",
         "defaults": {
-          "dark": "#bc8cff",
-          "light": "#8250df",
-          "highContrast": "#bc8cff",
-          "highContrastLight": "#8250df"
+          "dark": "#d29922",
+          "light": "#9a6700",
+          "highContrast": "#d29922",
+          "highContrastLight": "#9a6700"
         }
       },
       {
@@ -226,10 +235,10 @@
         "id": "agentTour.staleBorder",
         "description": "Dashed outline of a step whose anchor was not found.",
         "defaults": {
-          "dark": "#d29922",
-          "light": "#9a6700",
-          "highContrast": "#d29922",
-          "highContrastLight": "#9a6700"
+          "dark": "#db6d28",
+          "light": "#bc4c00",
+          "highContrast": "#db6d28",
+          "highContrastLight": "#bc4c00"
         }
       }
     ],
@@ -274,11 +283,31 @@
           "when": "view == agentTour.tours && viewItem == agentTour.tour",
           "group": "inline"
         }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "agentTour.previous",
+          "group": "navigation@1",
+          "when": "commentController == agentTour"
+        },
+        {
+          "command": "agentTour.next",
+          "group": "navigation@2",
+          "when": "commentController == agentTour"
+        },
+        {
+          "command": "agentTour.stop",
+          "group": "navigation@3",
+          "when": "commentController == agentTour"
+        }
       ]
     },
     "jsonValidation": [
       {
-        "fileMatch": "**/.agent-tours/*.json",
+        "fileMatch": [
+          "**/agent-tours-*/*.json",
+          "**/agent-tours-*/drafts/*.json"
+        ],
         "url": "./schema/tour.schema.json"
       }
     ],
@@ -293,7 +322,7 @@
     "viewsWelcome": [
       {
         "view": "agentTour.tours",
-        "contents": "No tours yet. After a multi-file change, the code-tour skill writes a tour to the `.agent-tours` folder and it appears here.\n[Reload Tours](command:agentTour.reload)"
+        "contents": "No tour for this workspace yet. After a multi-file change, the code-tour skill publishes one and it appears here. Tours are kept in a temp folder, never in your repository.\n[Reload Tours](command:agentTour.reload)"
       }
     ]
   },
@@ -305,8 +334,9 @@
     "package": "vsce package --allow-missing-repository --skip-license --out agent-tour.vsix",
     "vscode:prepublish": "npm run compile",
     "build:skill": "node scripts/build-skill.mjs",
-    "test:skill": "npm run build:skill && node --test skill-src/validate-tour.test.mjs",
-    "check:skill": "node scripts/build-skill.mjs && git diff --exit-code --stat -- ../skill/code-tour/scripts ../skill/code-tour/schema"
+    "test:skill": "npm run compile && node --test skill-src/validate-tour.test.mjs",
+    "check:skill": "node scripts/build-skill.mjs && git diff --exit-code --stat -- ../skill/code-tour/scripts ../skill/code-tour/schema",
+    "sample-tour": "node ../skill/code-tour/scripts/validate-tour.mjs test/fixtures/tours/2026-09-25-rate-limiting.json --root test/fixtures/sample-workspace --publish"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
