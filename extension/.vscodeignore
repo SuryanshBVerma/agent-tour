@@ -1,0 +1,10 @@
+# Ship only compiled extension code, the schema, and production dependencies.
+src/**
+test/**
+out/test/**
+**/*.map
+**/*.ts
+.vscode-test/**
+.vscode-test.mjs
+tsconfig.json
+*.vsix
