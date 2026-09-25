@@ -15,12 +15,16 @@ concurrency:
 
 jobs:
   test:
-    name: Test (${{ matrix.os }})
+    name: Test (${{ matrix.os }}, VS Code ${{ matrix.vscode }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        # The minimum in package.json "engines", and the newest release.
+        vscode: ["1.90.0", stable]
     runs-on: ${{ matrix.os }}
+    env:
+      VSCODE_TEST_VERSION: ${{ matrix.vscode }}
     defaults:
       run:
         working-directory: extension
@@ -37,7 +41,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: extension/.vscode-test
-          key: vscode-test-${{ runner.os }}-1.138.0
+          key: vscode-test-${{ runner.os }}-${{ matrix.vscode }}
 
       - run: npm ci
 

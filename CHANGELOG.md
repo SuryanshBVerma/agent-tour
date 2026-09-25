@@ -3,6 +3,13 @@
 All notable changes to this project are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-09-25
+
+### Fixed
+- Installs on **VS Code 1.90 and later**. v0.1.0 required 1.138 without needing it, so
+  installing on older versions failed with "not compatible with VS Code". Tested on 1.90.0
+  and the current stable release; CI now covers both on Ubuntu and Windows.
+
 ## [0.1.0] - 2026-09-25
 
 First release.
@@ -29,4 +36,5 @@ First release.
   validation checks the schema, files, ranges, anchors, overlaps and quality; `--publish`
   replaces the workspace's tour atomically.
 
+[0.1.1]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.1.1
 [0.1.0]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.1.0

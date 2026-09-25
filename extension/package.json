@@ -2,7 +2,7 @@
   "name": "agent-tour",
   "displayName": "Agent Tour",
   "description": "Guided, spotlighted code tours of agent-written changes, played in the real editor.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "agent-tour",
   "private": true,
   "license": "MIT",
@@ -22,7 +22,7 @@
     "claude code"
   ],
   "engines": {
-    "vscode": "^1.138.0"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Other"
@@ -359,7 +359,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.20.4",
-    "@types/vscode": "~1.138.0",
+    "@types/vscode": "~1.90.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.0.0",

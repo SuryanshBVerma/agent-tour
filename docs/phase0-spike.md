@@ -13,7 +13,7 @@ step changes, and a cross-file jump.
 4. Open **Output → Agent Tour** to see the log (step changes, URI receipt timestamps,
    anchor warnings).
 
-Automated tests: `cd extension && npm test` (downloads VS Code 1.138.0 into
+Automated tests: `cd extension && npm test` (downloads VS Code 1.90.0 into
 `extension/.vscode-test/` on first run).
 
 ## Automated checks (26 tests at the end of Phase 0; the Phase 1 suite covers more)

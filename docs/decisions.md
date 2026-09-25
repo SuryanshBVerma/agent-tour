@@ -3,6 +3,15 @@
 Record non-obvious decisions and deviations from `implementation-plan.md`, newest first.
 Include the date, the decision, why it was made, and the alternatives considered.
 
+## 2026-09-25: v0.1.1: minimum VS Code lowered from 1.138 to 1.90
+v0.1.0 declared `engines.vscode: ^1.138.0`, only because that matched the newest
+`@types/vscode`, not because of any API it needs. A colleague on VS Code 1.125.1 couldn't install
+it. The extension now declares `^1.90.0` (mid-2024) and compiles against `@types/vscode` 1.90,
+so the compiler rejects any API newer than the declared minimum. The full suite (77 tests)
+passed on VS Code 1.90.0 and 1.139.1 on Windows before release, and CI runs Ubuntu and Windows
+× {1.90.0, stable}. Not verified: how the spotlight, dimming and cards look on 1.90 (the tests
+check behavior only), and macOS.
+
 ## 2026-09-25: First-use feedback (before v0.1.0)
 - **Tours live outside the repository.** The first real use wrote `.agent-tours/<id>.json`
   into the project, where git tracked it. Tours now go to `<os.tmpdir()>/agent-tours-<user>/`

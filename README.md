@@ -6,7 +6,7 @@
   <a href="https://github.com/SuryanshBVerma/agent-tour/actions/workflows/ci.yml"><img src="https://github.com/SuryanshBVerma/agent-tour/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/SuryanshBVerma/agent-tour/releases/latest"><img src="https://img.shields.io/github/v/release/SuryanshBVerma/agent-tour?label=release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.138-007acc" alt="VS Code 1.138 or later">
+  <img src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.90-007acc" alt="VS Code 1.90 or later">
 </p>
 
 <p align="center">
@@ -53,7 +53,7 @@ tour replaces the previous one. Nothing is written to your repository, so there'
 
 ### 1. The extension
 
-Download [`agent-tour.vsix`](https://github.com/SuryanshBVerma/agent-tour/releases/latest/download/agent-tour.vsix), then:
+Requires **VS Code 1.90 or later**. Download [`agent-tour.vsix`](https://github.com/SuryanshBVerma/agent-tour/releases/latest/download/agent-tour.vsix), then:
 
 ```bash
 code --install-extension agent-tour.vsix
@@ -154,7 +154,7 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 cd extension
 npm ci
 npm run compile      # tsc + rebuild the skill's bundled validator
-npm test             # integration tests in VS Code 1.138 (downloads it on first run)
+npm test             # integration tests in VS Code 1.90, the minimum supported (downloads it on first run)
 npm run test:skill   # validator tests (plain node)
 npm run package      # builds agent-tour.vsix
 ```

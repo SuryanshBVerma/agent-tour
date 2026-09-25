@@ -28,3 +28,6 @@ extension/test/fixtures/sample-workspace/linked
 
 # Release artifacts built locally or in CI
 code-tour-skill.zip
+
+# /brag launch-video output (kept out of the repo)
+brag-output/

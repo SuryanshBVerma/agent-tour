@@ -19,7 +19,8 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 
 ## Commands (run in `extension/`)
 - `npm run compile` builds with tsc into `out/`.
-- `npm test` runs mocha tests in VS Code 1.138.0 (`.vscode-test.mjs`) against
+- `npm test` runs mocha tests in VS Code 1.90.0, the minimum in `engines` (`.vscode-test.mjs`;
+  set `VSCODE_TEST_VERSION=stable` for the newest release; CI runs both) against
   `test/fixtures/sample-workspace`. Tests publish tours from `test/fixtures/tours/` into that
   workspace's temp slot and clear it afterwards.
 - To try it manually, press F5 and choose "Run Agent Tour (sample workspace)" from the repo root.
