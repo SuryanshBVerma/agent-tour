@@ -10,8 +10,10 @@ description: Create and start a guided code tour after completing a change that 
 
 A code tour is a short, ordered walkthrough of a change. The **Agent Tour** VS Code
 extension plays it in the real editor: each step's lines are spotlighted, the rest of the
-file is dimmed, and a card shows your explanation. Your job is to write the tour file
-`.agent-tours/<id>.json`, validate it, and hand it to the developer.
+file is dimmed, and a card shows your explanation. Your job is to write the tour, validate
+and publish it with this skill's script, and hand it to the developer. Tours are temporary:
+they live in a per-user temp folder, never in the repository, and each new tour for a
+workspace replaces the previous one.
 
 A good tour is faster to review than the raw diff. It follows the change as a story,
 explains *why* rather than restating the code, and points out where you're unsure.
@@ -24,8 +26,8 @@ explains *why* rather than restating the code, and points out where you're unsur
 
 ## 1. Collect the changes
 1. **Workspace root** is the git top level: `git rev-parse --show-toplevel`. All paths in
-   the tour are relative to it, and the tour goes in `<root>/.agent-tours/`. Run the
-   commands below from there.
+   the tour are relative to it, and it must be the folder open in VS Code. Run the commands
+   below from there.
 2. **Base ref**:
    - uncommitted work: `HEAD`
    - work committed on a branch, with or without further uncommitted edits:
@@ -40,7 +42,7 @@ explains *why* rather than restating the code, and points out where you're unsur
    `git status --porcelain -uall`. `-uall` lists individual untracked files, which are part
    of the change. Check each one's size and first lines before reading it in full, and
    skip generated ones (a "generated" banner, build output folders, thousands of lines of
-   bundled code). Leave out `.agent-tours/` itself.
+   bundled code).
 4. Line numbers must refer to the files **as they are on disk now**. Always take them from
    the current file, not from the diff's `-` side.
 
@@ -121,10 +123,18 @@ honest in **Watch for:**. Flagging real uncertainty is the most valuable part of
 Never put secrets, credentials, tokens or personal data in any tour text. Tours are plain
 files that other people may read.
 
-## 4. Write the file
-Create `<root>/.agent-tours/<id>.json`. The `id` is lowercase letters, digits and hyphens,
-dated and descriptive (e.g. `2026-09-25-rate-limiting`), and the file name must equal the
-id. Rewriting a tour for the same change keeps the same id.
+## 4. Write the draft
+Get the draft path for this workspace (the script creates its folder):
+
+```bash
+node "<this skill's folder>/scripts/validate-tour.mjs" --where
+```
+
+It prints `draft: <path>` and `slot: <path>`. Write the tour JSON to the **draft** path.
+Never write tours inside the repository, and never write the slot yourself.
+
+The `id` is lowercase letters, digits and hyphens, dated and descriptive (e.g.
+`2026-09-25-rate-limiting`). Rewriting a tour for the same change keeps the same id.
 
 The **summary** runs up to about four sentences: what the change does, then the notable
 things that have no step (deleted files, generated files, trivial edits; group minor ones
@@ -157,36 +167,42 @@ not re-run" if someone else did; "not run" otherwise.
 }
 ```
 
-A complete example is in this skill's folder at `examples/2026-09-25-rate-limiting.json`
-(its file name equals its id, as yours must). The full schema is at `schema/tour.schema.json`.
+A complete example is in this skill's folder at `examples/2026-09-25-rate-limiting.json`.
+The full schema is at `schema/tour.schema.json`.
 
-## 5. Validate: required
-Run the validator that ships in this skill's folder, from the workspace root:
+## 5. Validate and publish: required
+From the workspace root, validate the draft; repeat until it prints `VALID`:
 
 ```bash
-node "<this skill's folder>/scripts/validate-tour.mjs" .agent-tours/<id>.json
+node "<this skill's folder>/scripts/validate-tour.mjs" "<draft path>"
 ```
 
-If you can't run it from the root, add `--root "<workspace root>"`. It checks the schema,
-that every file exists inside the workspace, that ranges fit the file, that each anchor is
-on its `range.start` line, that steps don't overlap, and the size and description rules
-above. Fix every `ERROR` and run it again until it prints `VALID`. Errors tell you the fix;
-for example, an anchor found on another line comes with the corrected range. Treat `WARN`
-lines as review comments on tour quality and fix them unless you have a reason not to.
+If you can't run it from the root, add `--root "<workspace root>"` to every call. It checks
+the schema, that every file exists inside the workspace, that ranges fit the file, that each
+anchor is on its `range.start` line, that steps don't overlap, and the size and description
+rules above. Fix every `ERROR` and run it again. Errors tell you the fix; for example, an
+anchor found on another line comes with the corrected range. Treat `WARN` lines as review
+comments on tour quality and fix them unless you have a reason not to.
+
+Then publish it, which validates once more and, only if valid, atomically replaces this
+workspace's current tour and removes the draft:
+
+```bash
+node "<this skill's folder>/scripts/validate-tour.mjs" "<draft path>" --publish
+```
 
 ## 6. Hand it over
-- The extension notices the new file and offers to start it (by default it shows a
+- The extension notices the published tour and offers to start it (by default it shows a
   "Start Tour" notification), so normally no command is needed. This includes tours you
   made on your own initiative after a change.
 - Only if the user asked for the tour itself ("walk me through it", "give me a tour"),
   start it right away:
   `code --open-url "vscode://agent-tour.agent-tour/start?id=<id>"`
-- Tell the user in one or two lines, naming the risks you flagged. For example: *"I wrote
-  a 7-step tour of the change (`.agent-tours/<id>.json`). Start it from the notification,
-  or from Agent Tours in the Explorer. It flags two risks: the cache TTL and the retry
+- Tell the user in one or two lines, naming the risks you flagged. For example: *"I published
+  a 7-step tour of the change. Start it from the notification, or from Agent Tours in the
+  Explorer. It flags two risks: the cache TTL and the retry
   loop."*
-- Check whether tours are ignored by git with `git check-ignore -q .agent-tours/<id>.json`
-  (exit code 0 means ignored). If they aren't, mention once that the user may want to add
-  `.agent-tours/` to `.gitignore`. Don't edit `.gitignore` yourself unless asked.
-- If the user says nothing happened, tours need the **Agent Tour** VS Code extension
-  (`agent-tour.agent-tour`).
+- If the user says nothing happened: tours need the **Agent Tour** VS Code extension
+  (`agent-tour.agent-tour`) installed in the VS Code profile that project uses, with the same
+  folder open that you used as the workspace root. They can also run **Agent Tour: Start
+  Tour...** from the Command Palette, or reload the window.

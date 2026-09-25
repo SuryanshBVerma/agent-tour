@@ -1,13 +1,18 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { isSafeRelativePath } from "./pathRules";
+import { ensureTourRoot, tourRootProblem, workspaceKey } from "./tourLocation";
 import { validateTour } from "./tourValidation";
 import { Tour, TOUR_ID_PATTERN } from "./types";
 
 /** Tours are small; anything larger is almost certainly not a tour. */
 const MAX_TOUR_BYTES = 1024 * 1024;
-/** Agents may write a file in several chunks; wait for writes to settle. */
+/** Writes are atomic renames, but a watcher can still report create + change; coalesce. */
 const WATCH_DEBOUNCE_MS = 250;
+/**
+ * A watcher on a folder outside the workspace takes a moment to start, so events right
+ * after (re)creating it can be missed. Re-scan the slots once it has settled.
+ */
+const SETTLE_RESCAN_MS = 1000;
 
 export interface LoadedTour {
   tour: Tour;
@@ -17,25 +22,34 @@ export interface LoadedTour {
 
 export interface InvalidTour {
   uri: vscode.Uri;
+  folder: vscode.Uri;
   errors: string[];
 }
 
 export type TourChange =
   | { type: "loaded"; loaded: LoadedTour; fromWatcher: boolean }
   | { type: "invalid"; invalid: InvalidTour; fromWatcher: boolean }
-  /** `id` is undefined when the removed file was an invalid tour. */
+  /** `id` is undefined when the removed slot held an invalid tour. */
   | { type: "removed"; id: string | undefined; uri: vscode.Uri };
 
 /**
- * Discovers `<folder>/<tourDirectory>/<id>.json` in every workspace folder, validates
- * them, and watches for changes. Invalid files are kept with their errors so they can
- * be reported instead of silently ignored.
+ * Holds the current tour of each open workspace folder. Tours live outside the
+ * repository, in one slot per workspace in a per-user temp folder (see tourLocation.ts);
+ * a new tour for a workspace replaces the previous one. Slots belonging to workspaces
+ * that are not open here are ignored. Invalid slots are kept with their errors so they
+ * can be reported instead of silently ignored.
  */
 export class TourStore implements vscode.Disposable {
   private readonly tours = new Map<string, LoadedTour>();
   private readonly invalid = new Map<string, InvalidTour>();
-  private readonly watchers: vscode.Disposable[] = [];
+  /** Slot file name (`<key>.json`) → workspace folder it belongs to. */
+  private folderBySlot = new Map<string, vscode.Uri>();
+  private root: string | undefined;
+  private watcher: vscode.Disposable | undefined;
   private readonly pending = new Map<string, NodeJS.Timeout>();
+  private settleTimer: NodeJS.Timeout | undefined;
+  /** Slot URI → "mtime:size" of the version last loaded, to skip unchanged re-reads. */
+  private readonly seen = new Map<string, string>();
   private readonly subscriptions: vscode.Disposable[] = [];
   private readonly changeEmitter = new vscode.EventEmitter<TourChange>();
 
@@ -45,9 +59,11 @@ export class TourStore implements vscode.Disposable {
     this.subscriptions.push(
       this.changeEmitter,
       vscode.workspace.onDidChangeWorkspaceFolders(() => void this.reload()),
-      vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration("agentTour.tourDirectory")) {
-          void this.reload();
+      // Safety net for missed watcher events: the usual flow is an agent publishing from a
+      // terminal or another window, then the developer switching back to VS Code.
+      vscode.window.onDidChangeWindowState((state) => {
+        if (state.focused) {
+          void this.rescan();
         }
       }),
     );
@@ -65,81 +81,106 @@ export class TourStore implements vscode.Disposable {
     return this.tours.get(id);
   }
 
+  /** The slot file this store reads for a workspace folder, or undefined if unavailable. */
+  slotFor(folder: vscode.Uri): vscode.Uri | undefined {
+    return this.root ? vscode.Uri.file(path.join(this.root, `${workspaceKey(folder.fsPath)}.json`)) : undefined;
+  }
+
   /**
-   * Looks a tour up by id, reading it from disk if the watcher has not caught up yet
-   * (e.g. a start link that arrives right after the agent wrote the file).
+   * Looks a tour up by id, re-reading the slots from disk first so a start link sent right
+   * after the agent published the tour works before the watcher has fired.
    */
   async find(id: string): Promise<LoadedTour | InvalidTour | undefined> {
     if (!TOUR_ID_PATTERN.test(id)) {
       return undefined;
     }
-    for (const { folder, directory } of this.tourDirectories()) {
-      const uri = vscode.Uri.joinPath(directory, `${id}.json`);
-      if (await exists(uri)) {
-        const result = await this.load(uri, folder, false);
-        if (result) {
-          return result;
-        }
+    for (const [slotName, folder] of this.folderBySlot) {
+      const result = await this.load(vscode.Uri.file(path.join(this.root!, slotName)), folder, false);
+      if (result && "tour" in result && result.tour.id === id) {
+        return result;
       }
     }
     return this.tours.get(id);
   }
 
-  /** Rescans every tour directory and recreates the watchers. */
+  /** Re-reads every open folder's slot and recreates the watcher. */
   async reload(): Promise<void> {
-    this.disposeWatchers();
+    this.disposeWatcher();
     this.tours.clear();
     this.invalid.clear();
+    this.seen.clear();
+    this.folderBySlot = new Map(
+      (vscode.workspace.workspaceFolders ?? [])
+        .filter((folder) => folder.uri.scheme === "file")
+        .map((folder) => [`${workspaceKey(folder.uri.fsPath)}.json`, folder.uri]),
+    );
 
-    for (const { folder, directory, relative } of this.tourDirectories()) {
-      // Pattern relative to the workspace folder so it falls inside the workspace's own
-      // recursive watcher and also covers a tour directory that does not exist yet.
-      const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(folder, `${relative}/*.json`),
-      );
-      watcher.onDidCreate((uri) => this.schedule(uri, folder));
-      watcher.onDidChange((uri) => this.schedule(uri, folder));
-      watcher.onDidDelete((uri) => this.remove(uri));
-      this.watchers.push(watcher);
+    const problem = tourRootProblem();
+    if (problem) {
+      // Security: a folder another user controls could feed us tours.
+      this.root = undefined;
+      this.log.error(`Not loading tours: ${problem}`);
+      void vscode.window.showErrorMessage(`Agent Tour: not loading tours because ${problem}.`);
+      return;
+    }
+    try {
+      this.root = ensureTourRoot();
+    } catch (error) {
+      this.root = undefined;
+      this.log.error(`Cannot create the tour folder: ${String(error)}`);
+      return;
+    }
 
-      let entries: [string, vscode.FileType][] = [];
-      try {
-        entries = await vscode.workspace.fs.readDirectory(directory);
-      } catch {
-        continue; // Directory does not exist yet; the watcher still sees files appear in it.
-      }
-      for (const [name, type] of entries) {
-        if (type === vscode.FileType.File && name.endsWith(".json")) {
-          await this.load(vscode.Uri.joinPath(directory, name), folder, false);
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(vscode.Uri.file(this.root), "*.json"),
+    );
+    watcher.onDidCreate((uri) => this.schedule(uri));
+    watcher.onDidChange((uri) => this.schedule(uri));
+    watcher.onDidDelete((uri) => this.remove(uri));
+    this.watcher = watcher;
+
+    for (const [slotName, folder] of this.folderBySlot) {
+      await this.load(vscode.Uri.file(path.join(this.root, slotName)), folder, false);
+    }
+    this.settleTimer = setTimeout(() => void this.rescan(), SETTLE_RESCAN_MS);
+    this.log.info(`Watching ${this.root}: ${this.tours.size} tour(s), ${this.invalid.size} invalid`);
+  }
+
+  /**
+   * Re-reads slots whose file changed (or appeared, or vanished) since last loaded, as if
+   * the watcher had reported it. Unchanged slots are skipped.
+   */
+  async rescan(): Promise<void> {
+    if (!this.root) {
+      return;
+    }
+    for (const [slotName, folder] of this.folderBySlot) {
+      const uri = vscode.Uri.file(path.join(this.root, slotName));
+      const version = await fileVersion(uri);
+      const known = this.seen.get(uri.toString());
+      if (version === undefined) {
+        if (known !== undefined) {
+          this.remove(uri);
         }
+      } else if (version !== known) {
+        this.log.info(`Re-scan found a new tour for ${folder.fsPath}`);
+        await this.load(uri, folder, true);
       }
     }
-    this.log.info(`Loaded ${this.tours.size} tour(s), ${this.invalid.size} invalid`);
   }
 
   dispose(): void {
-    this.disposeWatchers();
+    this.disposeWatcher();
     for (const subscription of this.subscriptions) {
       subscription.dispose();
     }
   }
 
-  private tourDirectories(): { folder: vscode.Uri; directory: vscode.Uri; relative: string }[] {
-    const configured = vscode.workspace.getConfiguration("agentTour").get<string>("tourDirectory", ".agent-tours");
-    const normalized = configured.replace(/\\/g, "/").replace(/\/+$/, "");
-    // Glob characters would change the watcher pattern, so they are not allowed.
-    const relative = isSafeRelativePath(normalized) && !/[*?[\]{}!]/.test(normalized) ? normalized : ".agent-tours";
-    if (relative !== normalized) {
-      this.log.warn(`agentTour.tourDirectory "${configured}" must be a plain workspace-relative folder; using .agent-tours`);
+  private schedule(uri: vscode.Uri): void {
+    const folder = this.folderBySlot.get(path.basename(uri.fsPath));
+    if (!folder) {
+      return; // Another workspace's tour.
     }
-    return (vscode.workspace.workspaceFolders ?? []).map((folder) => ({
-      folder: folder.uri,
-      directory: vscode.Uri.joinPath(folder.uri, relative),
-      relative,
-    }));
-  }
-
-  private schedule(uri: vscode.Uri, folder: vscode.Uri): void {
     const key = uri.toString();
     clearTimeout(this.pending.get(key));
     this.pending.set(
@@ -156,19 +197,23 @@ export class TourStore implements vscode.Disposable {
     folder: vscode.Uri,
     fromWatcher: boolean,
   ): Promise<LoadedTour | InvalidTour | undefined> {
-    const fileId = path.posix.basename(uri.path, ".json");
-    if (!(await exists(uri))) {
-      // A late create/change event can arrive after the file was deleted; that is a
-      // removal, not an invalid tour.
+    const version = await fileVersion(uri);
+    if (version === undefined) {
+      // No tour yet, or a late watcher event after deletion: a removal, not an error.
       this.remove(uri);
       return undefined;
     }
-    const result = await readAndValidate(uri, fileId).catch((error: unknown) => [String(error)]);
+    if (fromWatcher && this.seen.get(uri.toString()) === version) {
+      // Already loaded this exact file (e.g. the watcher reporting a write we read directly).
+      return this.tours.get(this.idAt(uri) ?? "") ?? this.invalid.get(uri.toString());
+    }
+    this.seen.set(uri.toString(), version);
+    const result = await readAndValidate(uri).catch((error: unknown) => [String(error)]);
     if (Array.isArray(result)) {
-      const invalid = { uri, errors: result };
+      const invalid = { uri, folder, errors: result };
       this.forget(uri);
       this.invalid.set(uri.toString(), invalid);
-      this.log.warn(`Invalid tour ${uri.fsPath}:\n  ${result.join("\n  ")}`);
+      this.log.warn(`Invalid tour for ${folder.fsPath}:\n  ${result.join("\n  ")}`);
       this.changeEmitter.fire({ type: "invalid", invalid, fromWatcher });
       return invalid;
     }
@@ -176,9 +221,11 @@ export class TourStore implements vscode.Disposable {
     const tour = result;
     const existing = this.tours.get(tour.id);
     if (existing && existing.uri.toString() !== uri.toString()) {
-      this.log.warn(`Duplicate tour id "${tour.id}" in ${uri.fsPath}; keeping ${existing.uri.fsPath}`);
+      this.log.warn(`Tour id "${tour.id}" is already loaded for ${existing.folder.fsPath}; ignoring the copy for ${folder.fsPath}`);
       return existing;
     }
+    // A slot holds one tour: drop whatever this slot held before (possibly another id).
+    this.forget(uri);
     const loaded: LoadedTour = { tour, folder, uri };
     this.invalid.delete(uri.toString());
     this.tours.set(tour.id, loaded);
@@ -189,12 +236,22 @@ export class TourStore implements vscode.Disposable {
   private remove(uri: vscode.Uri): void {
     clearTimeout(this.pending.get(uri.toString()));
     this.pending.delete(uri.toString());
+    this.seen.delete(uri.toString());
     const id = this.forget(uri);
     const wasInvalid = this.invalid.delete(uri.toString());
     if (id || wasInvalid) {
-      this.log.info(`Tour file ${uri.fsPath} removed`);
+      this.log.info(`Tour slot ${uri.fsPath} removed`);
       this.changeEmitter.fire({ type: "removed", id, uri });
     }
+  }
+
+  private idAt(uri: vscode.Uri): string | undefined {
+    for (const [id, loaded] of this.tours) {
+      if (loaded.uri.toString() === uri.toString()) {
+        return id;
+      }
+    }
+    return undefined;
   }
 
   /** Drops whichever loaded tour came from `uri`; returns its id. */
@@ -208,11 +265,11 @@ export class TourStore implements vscode.Disposable {
     return undefined;
   }
 
-  private disposeWatchers(): void {
-    for (const watcher of this.watchers) {
-      watcher.dispose();
-    }
-    this.watchers.length = 0;
+  private disposeWatcher(): void {
+    this.watcher?.dispose();
+    this.watcher = undefined;
+    clearTimeout(this.settleTimer);
+    this.settleTimer = undefined;
     for (const timer of this.pending.values()) {
       clearTimeout(timer);
     }
@@ -221,10 +278,7 @@ export class TourStore implements vscode.Disposable {
 }
 
 /** Returns the validated tour, or a list of human-readable errors. */
-async function readAndValidate(uri: vscode.Uri, fileId: string): Promise<Tour | string[]> {
-  if (!TOUR_ID_PATTERN.test(fileId)) {
-    return [`file name "${fileId}.json" is not a valid tour id`];
-  }
+async function readAndValidate(uri: vscode.Uri): Promise<Tour | string[]> {
   const stat = await vscode.workspace.fs.stat(uri);
   if (stat.size > MAX_TOUR_BYTES) {
     return [`file is ${stat.size} bytes; the limit is ${MAX_TOUR_BYTES}`];
@@ -236,15 +290,16 @@ async function readAndValidate(uri: vscode.Uri, fileId: string): Promise<Tour | 
   } catch (error) {
     return [`not valid JSON: ${error instanceof Error ? error.message : String(error)}`];
   }
-  const result = validateTour(data, fileId);
+  const result = validateTour(data);
   return result.ok ? result.tour : result.errors;
 }
 
-async function exists(uri: vscode.Uri): Promise<boolean> {
+/** "mtime:size" of a file, or undefined if it does not exist. Atomic publishes change both. */
+async function fileVersion(uri: vscode.Uri): Promise<string | undefined> {
   try {
-    await vscode.workspace.fs.stat(uri);
-    return true;
+    const stat = await vscode.workspace.fs.stat(uri);
+    return `${stat.mtime}:${stat.size}`;
   } catch {
-    return false;
+    return undefined;
   }
 }

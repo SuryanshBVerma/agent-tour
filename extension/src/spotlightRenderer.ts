@@ -20,14 +20,23 @@ interface Spotlight {
 
 const KINDS: StepKind[] = ["change", "context", "risk", "decision"];
 
-/** Gutter badge colors; mid-tones chosen to read on both light and dark gutters. */
+/**
+ * Badge colors (gutter number, inline card avatar). Mid-tones that read on both light and
+ * dark backgrounds, matching the meaning of the contributed theme colors: green = change,
+ * blue = context, amber = decision (needs the reviewer's judgement), red = risk.
+ */
 const GUTTER_COLORS: Record<StepKind, string> = {
   change: "#2da44e",
   context: "#2f81f7",
   risk: "#e5534b",
-  decision: "#986ee2",
+  decision: "#d29922",
 };
 const STALE_GUTTER_COLOR = "#8b949e";
+
+/** Numbered, kind-colored circle as an image URI (gutter icon and inline card avatar). */
+export function stepBadgeUri(stepNumber: number, kind: StepKind, stale = false): vscode.Uri {
+  return gutterBadge(stepNumber, stale ? STALE_GUTTER_COLOR : GUTTER_COLORS[kind]);
+}
 
 /**
  * Draws the current step: tinted, bordered target lines, a numbered gutter badge,
@@ -61,7 +70,7 @@ export class SpotlightRenderer implements vscode.Disposable {
     this.clear();
     this.current = { uri: editor.document.uri, range, kind, stepNumber, stale };
     this.gutterType = vscode.window.createTextEditorDecorationType({
-      gutterIconPath: gutterBadge(stepNumber, stale ? STALE_GUTTER_COLOR : GUTTER_COLORS[kind]),
+      gutterIconPath: stepBadgeUri(stepNumber, kind, stale),
       gutterIconSize: "contain",
     });
     this.apply(editor);

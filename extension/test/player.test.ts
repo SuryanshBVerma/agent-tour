@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { SAMPLE_ID, SAMPLE_TOUR, api, resetEditor } from "./helpers";
+import { SAMPLE_ID, SAMPLE_TOUR, api, resetEditor, useSampleTour, waitFor } from "./helpers";
 
 async function hoverText(uri: vscode.Uri, position: vscode.Position): Promise<string> {
   const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
@@ -16,8 +16,38 @@ async function hoverText(uri: vscode.Uri, position: vscode.Position): Promise<st
 
 const start = () => vscode.commands.executeCommand("agentTour.start", SAMPLE_ID);
 
+const setCardStyle = (style: "inline" | "hover" | undefined) =>
+  vscode.workspace.getConfiguration("agentTour").update("cardStyle", style, vscode.ConfigurationTarget.Global);
+
 describe("TourPlayer", () => {
-  afterEach(resetEditor);
+  beforeEach(useSampleTour);
+  afterEach(async () => {
+    await setCardStyle(undefined);
+    await resetEditor();
+  });
+
+  it("shows the inline card above the step by default and removes it on stop", async () => {
+    const { player } = await api();
+    await start();
+    let snapshot = player.snapshot();
+    assert.strictEqual(snapshot.inlineCardLine, snapshot.startLine! - 1);
+
+    await vscode.commands.executeCommand("agentTour.next");
+    snapshot = player.snapshot();
+    assert.strictEqual(snapshot.inlineCardLine, SAMPLE_TOUR.steps[1].range.start - 2, "card did not follow the step");
+
+    await vscode.commands.executeCommand("agentTour.stop");
+    assert.strictEqual(player.snapshot().inlineCardLine, undefined);
+  });
+
+  it("switches card style mid-tour without leaving the old card behind", async () => {
+    const { player } = await api();
+    await start();
+    assert.notStrictEqual(player.snapshot().inlineCardLine, undefined);
+    await setCardStyle("hover");
+    await waitFor(() => player.snapshot().inlineCardLine === undefined, 2000, "inline card removal");
+    assert.strictEqual(player.snapshot().status, "playing");
+  });
 
   it("walks every step, opening the right file with anchors matching", async () => {
     const { player } = await api();
@@ -47,8 +77,9 @@ describe("TourPlayer", () => {
     assert.deepStrictEqual(ended.decorated, {}, "decorations left after finishing");
   });
 
-  it("serves the card only inside the current step while active", async () => {
+  it("serves the hover card only inside the current step while active", async () => {
     const { player } = await api();
+    await setCardStyle("hover");
     await start();
     const uri = vscode.window.activeTextEditor!.document.uri;
     const step = SAMPLE_TOUR.steps[0];

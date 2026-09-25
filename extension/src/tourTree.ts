@@ -14,7 +14,7 @@ const KIND_ICONS: Record<StepKind, string> = {
   change: "diff-modified",
   context: "info",
   risk: "warning",
-  decision: "law",
+  decision: "question",
 };
 
 /**
@@ -148,7 +148,7 @@ export class TourTree implements vscode.TreeDataProvider<TourNode>, vscode.Dispo
 }
 
 function invalidItem(invalid: InvalidTour): vscode.TreeItem {
-  const item = new vscode.TreeItem(path.posix.basename(invalid.uri.path), vscode.TreeItemCollapsibleState.None);
+  const item = new vscode.TreeItem(`Latest tour for ${path.posix.basename(invalid.folder.path)}`, vscode.TreeItemCollapsibleState.None);
   item.id = `invalid:${invalid.uri.toString()}`;
   item.description = "invalid";
   item.iconPath = new vscode.ThemeIcon("error", new vscode.ThemeColor("list.errorForeground"));

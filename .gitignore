@@ -19,9 +19,6 @@ Thumbs.db
 .env
 .env.*
 
-# Tours generated while dogfooding in this repo
-/.agent-tours/
-
 # Claude Code local settings
 .claude/settings.local.json
 

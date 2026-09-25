@@ -2,7 +2,7 @@
 
 Goal: decide go/no-go for the native-editor approach (plan section 6, Phase 0).
 The spike originally hardcoded its 5-step tour. Since Phase 1 the same tour is loaded from
-`extension/test/fixtures/sample-workspace/.agent-tours/2026-09-25-rate-limiting.json`. It covers all four step kinds, two same-file
+`extension/test/fixtures/tours/2026-09-25-rate-limiting.json` (published to the sample workspace's temp slot by the F5 launch config). It covers all four step kinds, two same-file
 step changes, and a cross-file jump.
 
 ## How to run

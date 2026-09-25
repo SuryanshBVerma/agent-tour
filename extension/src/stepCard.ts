@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { Resolution, formatDelta } from "./anchorResolver";
-import { KIND_LABELS, StepKind, Tour, TourStep } from "./types";
+import { KIND_LABELS, StepKind, Tour } from "./types";
 
 /** The only commands a step card may invoke. Anything else in card Markdown is inert. */
 export const CARD_COMMANDS = [
@@ -9,22 +9,38 @@ export const CARD_COMMANDS = [
   "agentTour.stop",
 ] as const;
 
-const KIND_ICONS: Record<StepKind, string> = {
+export const KIND_ICONS: Record<StepKind, string> = {
   change: "$(diff-modified)",
   context: "$(info)",
   risk: "$(warning)",
-  decision: "$(law)",
+  decision: "$(question)",
 };
+
+/**
+ * A rendered card, split by trust level:
+ * - `header` is built only from our own fixed strings and numbers, so it alone may use
+ *   HTML (for the colored kind badge).
+ * - `body` holds the agent-written title and description: no HTML, no commands.
+ * - `footer` holds the navigation links: commands limited to CARD_COMMANDS, no HTML.
+ */
+export interface CardParts {
+  header: vscode.MarkdownString;
+  body: vscode.MarkdownString;
+  footer: vscode.MarkdownString;
+  /** Plain-text header for places that cannot render Markdown (inline card label). */
+  label: string;
+}
 
 interface ActiveCard {
   uri: vscode.Uri;
   range: vscode.Range;
-  content: vscode.MarkdownString;
+  parts: CardParts;
 }
 
 /**
- * Serves the step card through a HoverProvider. It answers only while a tour is active
- * and only for positions inside the current step, so it never adds noise to normal hovers.
+ * Serves the step card through a HoverProvider (`agentTour.cardStyle: "hover"`). It answers
+ * only while a tour is active and only inside the current step, so it never adds noise to
+ * normal hovers.
  */
 export class StepCard implements vscode.HoverProvider, vscode.Disposable {
   private active: ActiveCard | undefined;
@@ -34,8 +50,8 @@ export class StepCard implements vscode.HoverProvider, vscode.Disposable {
     this.registration = vscode.languages.registerHoverProvider({ scheme: "file" }, this);
   }
 
-  set(uri: vscode.Uri, range: vscode.Range, content: vscode.MarkdownString): void {
-    this.active = { uri, range, content };
+  set(uri: vscode.Uri, range: vscode.Range, parts: CardParts): void {
+    this.active = { uri, range, parts };
   }
 
   clear(): void {
@@ -48,7 +64,8 @@ export class StepCard implements vscode.HoverProvider, vscode.Disposable {
       return undefined;
     }
     this.log.trace(`Card served at ${position.line + 1}:${position.character + 1}`);
-    return new vscode.Hover(card.content, card.range);
+    const { header, body, footer } = card.parts;
+    return new vscode.Hover([header, body, footer], card.range);
   }
 
   dispose(): void {
@@ -57,24 +74,34 @@ export class StepCard implements vscode.HoverProvider, vscode.Disposable {
   }
 }
 
-export function renderCard(tour: Tour, index: number, resolution: Resolution): vscode.MarkdownString {
-  const step: TourStep = tour.steps[index];
+export function renderCard(tour: Tour, index: number, resolution: Resolution): CardParts {
+  const step = tour.steps[index];
   const total = tour.steps.length;
-  const md = new vscode.MarkdownString(undefined, true);
-  md.isTrusted = { enabledCommands: [...CARD_COMMANDS] };
-  md.supportHtml = false;
+  const kindLabel = KIND_LABELS[step.kind];
 
-  md.appendMarkdown(`**Step ${index + 1} of ${total}** · ${KIND_ICONS[step.kind]} ${KIND_LABELS[step.kind]}`);
+  // Header: our strings only. VS Code's sanitizer keeps <span style> when the style is
+  // exactly `color:...;background-color:...;` with hex or --vscode-* variables, so the
+  // badge follows the theme through the colors this extension contributes.
+  const header = new vscode.MarkdownString(undefined, true);
+  header.supportHtml = true;
+  header.isTrusted = false;
+  header.appendMarkdown(`**Step ${index + 1} of ${total}** &nbsp; ${badge(`${KIND_ICONS[step.kind]} ${kindLabel}`, `agentTour-${step.kind}Border`)}`);
   if (resolution.status === "stale") {
-    md.appendMarkdown(" · $(alert) **Stale:** _code changed since the tour was written; showing the original lines_");
+    header.appendMarkdown(` &nbsp; ${badge("$(alert) Stale", "agentTour-staleBorder")} _code changed since the tour was written_`);
   } else if (resolution.status === "relocated") {
-    md.appendMarkdown(` · $(arrow-swap) _moved ${formatDelta(resolution.delta)} since the tour was written_`);
+    header.appendMarkdown(` &nbsp; $(arrow-swap) _moved ${formatDelta(resolution.delta)}_`);
   }
-  md.appendMarkdown("\n\n");
-  md.appendMarkdown(`### ${escapeInline(step.title)}\n\n`);
-  md.appendMarkdown(`${sanitizeDescription(step.description)}\n\n`);
-  md.appendMarkdown("---\n\n");
 
+  // Body: agent-written, fully untrusted.
+  const body = new vscode.MarkdownString();
+  body.supportHtml = false;
+  body.isTrusted = false;
+  body.appendMarkdown(`### ${escapeInline(step.title)}\n\n${sanitizeDescription(step.description)}`);
+
+  // Footer: navigation only.
+  const footer = new vscode.MarkdownString(undefined, true);
+  footer.supportHtml = false;
+  footer.isTrusted = { enabledCommands: [...CARD_COMMANDS] };
   const links: string[] = [];
   if (index > 0) {
     links.push("[$(chevron-left) Previous](command:agentTour.previous \"Previous step (Alt+[)\")");
@@ -85,8 +112,18 @@ export function renderCard(tour: Tour, index: number, resolution: Resolution): v
       : "[Finish $(check)](command:agentTour.next \"Finish tour (Alt+])\")",
   );
   links.push("[Stop](command:agentTour.stop \"Stop tour (Esc)\")");
-  md.appendMarkdown(links.join(" &nbsp;·&nbsp; "));
-  return md;
+  footer.appendMarkdown(links.join(" &nbsp;·&nbsp; "));
+
+  const status = resolution.status === "stale" ? " · Stale" : "";
+  return { header, body, footer, label: `Step ${index + 1} of ${total} · ${kindLabel}${status}` };
+}
+
+/** A colored pill. `colorVariable` is a contributed color id with dots written as dashes. */
+function badge(text: string, colorVariable: string): string {
+  return (
+    `<span style="color:var(--vscode-editor-background);background-color:var(--vscode-${colorVariable});">` +
+    `&nbsp;${text}&nbsp;</span>`
+  );
 }
 
 /**
@@ -102,6 +139,6 @@ export function sanitizeDescription(text: string): string {
  * Titles render inside a heading: keep them on one line and escape link, image and
  * emphasis syntax. Inline code (backticks) is allowed.
  */
-function escapeInline(text: string): string {
+export function escapeInline(text: string): string {
   return text.replace(/[\r\n]+/g, " ").replace(/([\\*_[\]<>#!|])/g, "\\$1");
 }

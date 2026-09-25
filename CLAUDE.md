@@ -1,7 +1,9 @@
 # Agent Code Tours (PoC)
 
 A VS Code extension plus a Claude Code skill. After an agent finishes a multi-file change,
-the skill has it write a tour file (`.agent-tours/<id>.json`). The extension then plays the
+the skill has it write a tour and publish it with the bundled validator into a per-user temp
+folder (one slot per workspace, never inside the repository; see `extension/src/tourLocation.ts`).
+The extension then plays the
 tour in the real editor: the target lines are spotlighted, the rest of the file is dimmed,
 each step gets a description card, and the developer moves through it with the keyboard.
 
@@ -18,7 +20,8 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 ## Commands (run in `extension/`)
 - `npm run compile` builds with tsc into `out/`.
 - `npm test` runs mocha tests in VS Code 1.138.0 (`.vscode-test.mjs`) against
-  `test/fixtures/sample-workspace`. The tests write and delete `.agent-tours/watch-test.json` there.
+  `test/fixtures/sample-workspace`. Tests publish tours from `test/fixtures/tours/` into that
+  workspace's temp slot and clear it afterwards.
 - To try it manually, press F5 and choose "Run Agent Tour (sample workspace)" from the repo root.
 - `npm run compile` also rebuilds the skill's generated files (the validator bundle and the
   schema copy); commit them together with source changes. `npm run check:skill` fails if
