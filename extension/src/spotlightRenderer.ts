@@ -52,6 +52,8 @@ export class SpotlightRenderer implements vscode.Disposable {
   private staleType: vscode.TextEditorDecorationType | undefined;
   private gutterType: vscode.TextEditorDecorationType | undefined;
   private current: Spotlight | undefined;
+  /** The one editor the step is drawn in, so a second view of the same file is not decorated. */
+  private activeEditor: vscode.TextEditor | undefined;
   private applied = new Map<vscode.TextEditor, Map<vscode.TextEditorDecorationType, number>>();
 
   constructor(private options: SpotlightOptions) {
@@ -68,6 +70,7 @@ export class SpotlightRenderer implements vscode.Disposable {
 
   show(editor: vscode.TextEditor, range: vscode.Range, kind: StepKind, stepNumber: number, stale = false): void {
     this.clear();
+    this.activeEditor = editor;
     this.current = { uri: editor.document.uri, range, kind, stepNumber, stale };
     this.gutterType = vscode.window.createTextEditorDecorationType({
       gutterIconPath: stepBadgeUri(stepNumber, kind, stale),
@@ -76,15 +79,14 @@ export class SpotlightRenderer implements vscode.Disposable {
     this.apply(editor);
   }
 
-  /** Re-applies the current step to editors that became visible again (e.g. file reopened). */
+  /** Re-applies the current step to the active editor when it becomes visible again. */
   redrawVisible(): void {
     if (!this.current) {
       return;
     }
-    for (const editor of vscode.window.visibleTextEditors) {
-      if (editor.document.uri.toString() === this.current.uri.toString()) {
-        this.apply(editor);
-      }
+    const editor = this.visibleEditorForStep();
+    if (editor) {
+      this.apply(editor);
     }
   }
 
@@ -98,7 +100,19 @@ export class SpotlightRenderer implements vscode.Disposable {
     this.gutterType?.dispose();
     this.gutterType = undefined;
     this.current = undefined;
+    this.activeEditor = undefined;
     this.applied.clear();
+  }
+
+  /** The tracked editor while visible, otherwise whichever visible editor now shows the step. */
+  private visibleEditorForStep(): vscode.TextEditor | undefined {
+    const visible = vscode.window.visibleTextEditors;
+    if (this.activeEditor && visible.includes(this.activeEditor)) {
+      return this.activeEditor;
+    }
+    const uri = this.current?.uri.toString();
+    this.activeEditor = uri === undefined ? undefined : visible.find((editor) => editor.document.uri.toString() === uri);
+    return this.activeEditor;
   }
 
   dispose(): void {

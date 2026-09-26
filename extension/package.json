@@ -2,7 +2,7 @@
   "name": "agent-tour",
   "displayName": "Agent Tour",
   "description": "Guided, spotlighted code tours of agent-written changes, played in the real editor.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "agent-tour",
   "private": true,
   "license": "MIT",
@@ -76,6 +76,13 @@
         "enablement": "agentTour.active"
       },
       {
+        "command": "agentTour.toggleDiff",
+        "title": "Toggle Side-by-Side Diff",
+        "category": "Agent Tour",
+        "enablement": "agentTour.active",
+        "icon": "$(diff)"
+      },
+      {
         "command": "agentTour.stop",
         "title": "Stop Tour",
         "category": "Agent Tour",
@@ -103,6 +110,11 @@
         "command": "agentTour.showCard",
         "key": "alt+h",
         "when": "agentTour.active"
+      },
+      {
+        "command": "agentTour.toggleDiff",
+        "key": "alt+d",
+        "when": "agentTour.active && !inlineSuggestionVisible"
       },
       {
         "command": "agentTour.stop",
@@ -269,6 +281,10 @@
         },
         {
           "command": "agentTour.showCard",
+          "when": "agentTour.active"
+        },
+        {
+          "command": "agentTour.toggleDiff",
           "when": "agentTour.active"
         },
         {

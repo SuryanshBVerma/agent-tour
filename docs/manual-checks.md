@@ -25,3 +25,18 @@ Revert the fixture edits from checks 5–7 afterwards (`git checkout -- extensio
 | 11 | Inline card title bar ‹ › × work; Alt+H re-opens a collapsed card | Collapse the card, press Alt+H | |
 | 12 | Nothing is written into the repository | Publish a tour, run `git status` in the project | |
 | 13 | A new tour replaces the previous one | Ask the agent for two tours in a row; Agent Tours lists one | |
+
+## v0.1.2 additions (diff view)
+Run these in a real Git repository (the sample workspace is not one), with a tour whose
+`baseRef` is a commit behind the working tree.
+
+| # | Check | How | Result |
+|---|---|---|---|
+| 14 | Alt+D opens a two-column diff of the step against `baseRef` | Start a tour, press Alt+D | |
+| 15 | The modified (right) side is spotlighted and the step card behaves as usual | Look at the right column and the card | |
+| 16 | The status-bar diff icon reflects the state, and clicking it toggles | Toggle on and off from the status bar | |
+| 17 | Diff mode is sticky across Next/Previous and off by default | Step forward twice without pressing Alt+D again | |
+| 18 | Alt+D again, or Stop, returns to the spotlighted editor with no decorations left | Toggle off, then stop | |
+| 19 | An added file (no version at `baseRef`) falls back to the editor with one notice | Tour a newly added file, press Alt+D | |
+| 20 | A non-repository workspace falls back with one notice and stays navigable | Open a folder that is not a Git repo, press Alt+D | |
+
