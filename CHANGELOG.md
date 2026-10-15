@@ -3,6 +3,24 @@
 All notable changes to this project are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The skill makes unprompted tours only after a large, complex change the agent drove
+  itself (more than five non-generated files with real logic), never for direct, scoped
+  requests, and never asks whether you want one. Asking for a tour still always works.
+- The skill writes the tour draft with a terminal command, so it no longer shows up in the
+  session's list of changed files.
+- Better step explanations. The skill now asks for a first step that maps the whole change,
+  steps that link to each other, no restating of the highlighted code, a last step on what
+  the tests do and don't prove, and a summary that ends with what to verify by hand. The
+  step count scales with the change, and a focus named by the user gets the most depth.
+- New `examples/writing-steps.md` in the skill: weak and strong versions of each kind of step
+  and of the summary. The example tour follows the new guidance.
+- The skill says what the card can render, mentions `Alt+D` for the diff in its hand-over,
+  and sets `createdBy` to the agent's own name, so it reads the same for Copilot and Claude
+  Code.
+
 ## [0.1.2] - 2026-09-25
 
 ### Added

@@ -84,7 +84,8 @@ The validator needs only **Node.js 18 or later**.
 
 ## Use
 
-After a multi-file change, Claude Code offers a tour on its own, or you can ask:
+After a large change it drove itself (more than five files with real logic), the agent
+publishes a tour on its own. For anything else, ask:
 
 > give me a tour of what you changed
 

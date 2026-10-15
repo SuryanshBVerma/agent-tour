@@ -3,6 +3,40 @@
 Record non-obvious decisions and deviations from `implementation-plan.md`, newest first.
 Include the date, the decision, why it was made, and the alternatives considered.
 
+## 2026-10-15: Skill makes fewer unprompted tours; drafts are written from the terminal
+Captured from edits made directly to an installed copy of the skill (`~/.copilot/skills/code-tour`)
+during use with Copilot.
+- **Stricter trigger.** An unprompted tour now needs all three of: more than 5 non-generated
+  files, a complexity signal (cross-layer flow, new contract, schema or migration,
+  security/concurrency/data-integrity logic, or ~150+ lines of real logic), and autonomy (the
+  agent shaped the change). Direct, scoped instructions ("add auth checks to this endpoint")
+  get no tour even if they ripple into many files, and the agent never asks whether to make
+  one. Rationale: the old threshold (more than one file or ~50 lines) produced tours for
+  changes the developer had dictated and already understood. An explicit request still
+  always gets a tour. The trade-off: a complex change touching 3–5 files no longer gets an
+  unprompted tour.
+- **Draft written with a terminal command, not an edit tool.** Edit tools list the draft
+  among the session's changed files next to the real change. PowerShell uses
+  `[System.IO.File]::WriteAllText` (UTF-8 without a BOM) because 5.1's `Set-Content
+  -Encoding utf8` adds one; the validator and TourStore strip a BOM anyway, so this is
+  hygiene, not a correctness fix.
+
+## 2026-10-15: Step-writing guidance, informed by awesome-copilot's code-tour skill
+Compared with `github/awesome-copilot/skills/code-tour`, which builds persona-targeted
+onboarding tours in the CodeTour format. Adopted, adapted to reviewing a single change:
+- **Orientation in the first step**, since our tours have no content-only steps; **a closing
+  step** on what the tests do and don't prove; a **Verify** sentence in the summary.
+- **"Don't restate the code"** as an explicit test, **links between steps**, and **step count
+  scaled to the change** (3–5 / 5–8 / 8–12, inside the validator's existing 3–12 band).
+- **Weak and strong examples** in `examples/writing-steps.md`, loaded by reference so
+  SKILL.md stays short. Neither skill had full examples before.
+
+Not adopted: personas (our reader is always the reviewer of the agent's change),
+content-only and directory steps (not in our schema), and a skeleton generator from docs
+(only useful for onboarding tours). Possible validator heuristics (no code span in a
+`change`/`risk` description, no test status in the summary) are deferred; they need
+extension code and tests.
+
 ## 2026-09-25: Per-step side-by-side Git diff (v0.1.2)
 - **The diff is on demand, not automatic.** `agentTour.toggleDiff` (Alt+D, a status-bar item,
   and the Command Palette) switches the current step between the spotlighted editor and a

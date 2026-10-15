@@ -1,8 +1,10 @@
 ---
 name: code-tour
-description: Create and start a guided code tour after completing a change that touches
-  more than one file or more than ~50 lines, so the developer can review it step by step
-  in VS Code. Also use when the user asks to "walk me through", "show me what you did",
+description: Create a guided code tour only after completing a large, complex change
+  (more than 5 non-generated files with non-trivial logic) that the agent drove
+  autonomously, such as implementing a ticket or a multi-step feature. Do NOT use for
+  narrow, direct requests like "add auth checks to this endpoint" or "fix this bug".
+  Always use when the user explicitly asks to "walk me through", "show me what you did",
   or "give me a tour" of changes.
 ---
 
@@ -18,11 +20,32 @@ workspace replaces the previous one.
 A good tour is faster to review than the raw diff. It follows the change as a story,
 explains *why* rather than restating the code, and points out where you're unsure.
 
-## When not to make one
-- The change is trivial: one file and under ~50 lines, unless the user asked for a tour.
+## When to make one
+If the user explicitly asked for a tour or walkthrough, make one and skip this check.
+
+Otherwise make a tour **only if all** of these hold:
+1. **Breadth:** more than 5 changed files, not counting generated, vendored, lockfile,
+   snapshot, test-result or formatting-only files.
+2. **Complexity:** at least one of: new or changed control flow across layers (e.g.
+   endpoint -> service -> repository), a new abstraction or public contract, a schema or
+   migration change, security/concurrency/data-integrity logic, or roughly 150+ changed
+   lines of real logic.
+3. **Autonomy:** the agent decided the shape of the change itself (implementing a ticket,
+   a feature, a refactor or a multi-step plan). The user did not dictate a narrow, specific
+   edit.
+
+Do **not** make one when:
+- The request was a direct, scoped instruction the user already understands, e.g. "add
+  auth checks to this endpoint", "rename X to Y", "fix this failing test", "bump this
+  package", even if it ripples into more than 5 files.
+- The change is mechanical: renames, moves, formatting, dependency bumps, generated code,
+  repetitive identical edits across many files.
+- The change is mostly tests or docs.
 - There is no git repository, or no changes against the base ref.
 - The work is unfinished or failing. Finish it first, or say in the summary that the
   tour covers a work in progress.
+
+When in doubt, don't make one. Never ask the user whether they want one.
 
 ## 1. Collect the changes
 1. **Workspace root** is the git top level: `git rev-parse --show-toplevel`. All paths in
@@ -61,14 +84,36 @@ Order the steps as a narrative, not as a list of files:
 3. **Supporting pieces:** types, config, migrations.
 4. **Tests:** what they prove, and what they don't cover.
 
+**The first step orients.** Every step must point at a file, so there is no separate
+overview step. Instead, open the first step's description with one sentence giving the
+shape of the whole change, then describe the step itself: *"This change has three parts:
+the limiter, its wiring into the router, and tests. We start where a request enters."*
+
+**The last step is what the reviewer should leave with:** usually the tests (what they
+prove and what they don't), or the riskiest open question if that matters more.
+
+**If the user named a focus** ("walk me through the auth part", specific files or a
+concern), give it the most steps and depth, and reach it early; trim other parts of the
+story to make room. If something they named has no step (it didn't change, or it's
+generated), say so in the summary.
+
 Group tightly related hunks into one step, even across a few lines. Fold trivial edits
 (imports, renames, formatting, moved code with no logic change) into the summary. The
 exception is a move that is itself a design choice (for example, extracting code so a
 second consumer can share it): give it a short `decision` step at its new location.
 
-**Size:** aim for **5–8 steps**. The validator warns outside 3–12 and rejects more than
-20. Keep each step **3–40 lines**, aimed at the lines that matter, not the whole
-function; the validator warns above 40.
+**Size:** scale the step count to the change, not to the file count:
+
+| Change | Steps |
+|---|---|
+| Small change, tour requested by the user | 3–5 |
+| Typical multi-file change | 5–8 |
+| Large change across several layers | 8–12 |
+
+The validator warns outside 3–12 and rejects more than 20. Past 12, the tour is covering
+too much: drop the steps a reviewer could skip and mention them in the summary. Keep each
+step **3–40 lines**, aimed at the lines that matter, not the whole function; the validator
+warns above 40.
 
 ## 3. Write each step
 | Field | Rule |
@@ -116,9 +161,28 @@ write filler. The validator warns when a required section is missing. The card i
 hover, so keep each description to **about 40–150 words**; the validator warns above
 1,000 characters.
 
-Be concrete and name the identifiers: *"`refill()` runs lazily on each request, so
-there's no timer to clean up"* helps; *"This function handles refilling"* doesn't. Be
-honest in **Watch for:**. Flagging real uncertainty is the most valuable part of a tour.
+**What makes a description worth reading:**
+- **Don't restate the code.** The reviewer is looking at the highlighted lines. If a
+  sentence could be written from those lines alone, cut it. Spend the words on what the
+  lines don't show: why this shape, what calls it, what breaks if it's wrong, and what you
+  checked or didn't.
+- **Name the identifiers.** *"`refill()` runs lazily on each request, so there's no timer
+  to clean up"* helps; *"This function handles refilling"* doesn't.
+- **Keep the thread.** Link each step to an earlier one when they connect: *"The limiter
+  from the first step is mounted here…"*, *"This is where the `429` from step 2 is
+  produced."* The tour should read as one story, not as separate notes.
+- **Be honest in Watch for.** Flagging real uncertainty (untested paths, assumptions you
+  couldn't verify, behavior you inferred rather than ran) is the most valuable part of a
+  tour.
+
+`examples/writing-steps.md` in this skill's folder has weak and strong versions of each
+kind of step. Read it before writing your first tour in a session.
+
+**What the card can show:** the card is a VS Code hover. Use bold, `code spans`, short
+lists and plain links. HTML is disabled, images are not shown, and the step title is
+already the heading, so don't add headings. Every step must point at a range in an
+existing file; the extension can't show free-text steps, run commands, or link between
+steps, so don't try to work around that.
 
 Never put secrets, credentials, tokens or personal data in any tour text. Tours are plain
 files that other people may read.
@@ -133,18 +197,43 @@ node "<this skill's folder>/scripts/validate-tour.mjs" --where
 It prints `draft: <path>` and `slot: <path>`. Write the tour JSON to the **draft** path.
 Never write tours inside the repository, and never write the slot yourself.
 
+**Write the draft from the terminal, never with a file-creation or file-edit tool.** Edit
+tools add the draft to the session's list of changed files next to the real code change;
+a terminal write keeps the tour in the background. Write UTF-8 without a BOM:
+
+- PowerShell (5.1 `Set-Content -Encoding utf8` adds a BOM, so use .NET):
+  ```powershell
+  $tour = @'
+  { "version": 1, ... }
+  '@
+  [System.IO.File]::WriteAllText("<draft path>", $tour)
+  ```
+- Bash:
+  ```bash
+  cat > "<draft path>" <<'EOF'
+  { "version": 1, ... }
+  EOF
+  ```
+
+Use single-quoted here-strings so `$` and backticks in descriptions are not expanded. To
+fix validation errors, rewrite the whole draft the same way.
+
 The `id` is lowercase letters, digits and hyphens, dated and descriptive (e.g.
 `2026-09-25-rate-limiting`). Rewriting a tour for the same change keeps the same id.
 
 The **summary** runs up to about four sentences: what the change does, then the notable
 things that have no step (deleted files, generated files, trivial edits; group minor ones
-rather than listing each), then the test status. For example: *"Adds per-key token bucket
-middleware and wires it into the /api routes. Deletes the unused `legacyThrottle.ts`;
-`package-lock.json` changes only for the new dependency. Unit tests pass; not
-load-tested."*
+rather than listing each), then the test status, then what the reviewer should verify by
+hand. For example: *"Adds per-key token bucket middleware and wires it into the /api
+routes. Deletes the unused `legacyThrottle.ts`; `package-lock.json` changes only for the
+new dependency. Unit tests pass; not load-tested. Verify: the 60/min quota matches the
+public docs."*
 
 Report test status as you know it: "tests pass" only if you ran them; "reported passing,
-not re-run" if someone else did; "not run" otherwise.
+not re-run" if someone else did; "not run" otherwise. The **Verify** sentence names the one
+or two things you could not check yourself; leave it out if there are none.
+
+Set `createdBy` to your own agent name, for example `claude-code` or `copilot`.
 
 ```json
 {
@@ -201,7 +290,7 @@ node "<this skill's folder>/scripts/validate-tour.mjs" "<draft path>" --publish
 - Tell the user in one or two lines, naming the risks you flagged. For example: *"I published
   a 7-step tour of the change. Start it from the notification, or from Agent Tours in the
   Explorer. It flags two risks: the cache TTL and the retry
-  loop."*
+  loop. Press Alt+D on any step to see it as a diff against the base."*
 - If the user says nothing happened: tours need the **Agent Tour** VS Code extension
   (`agent-tour.agent-tour`) installed in the VS Code profile that project uses, with the same
   folder open that you used as the workspace root. They can also run **Agent Tour: Start
