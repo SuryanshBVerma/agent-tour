@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="t">
+  <title id="t">Agent Tour</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b2445"/>
+      <stop offset="1" stop-color="#0b1020"/>
+    </linearGradient>
+    <linearGradient id="spot" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2ea043" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#2ea043" stop-opacity=".08"/>
+    </linearGradient>
+  </defs>
+
+  <!-- tile -->
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <rect x="1.5" y="1.5" width="253" height="253" rx="54.5" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="3"/>
+
+  <!-- dimmed code above -->
+  <rect x="78" y="46" width="104" height="16" rx="8" fill="#5a6684" fill-opacity=".45"/>
+  <rect x="96" y="76" width="70" height="16" rx="8" fill="#5a6684" fill-opacity=".45"/>
+
+  <!-- spotlighted step -->
+  <rect x="40" y="106" width="198" height="62" rx="12" fill="url(#spot)"/>
+  <rect x="40" y="106" width="9" height="62" rx="4.5" fill="#3fb950"/>
+  <rect x="78" y="118" width="130" height="16" rx="8" fill="#f0f6fc"/>
+  <rect x="96" y="141" width="96" height="16" rx="8" fill="#7ee2a0"/>
+
+  <!-- dimmed code below -->
+  <rect x="78" y="180" width="86" height="16" rx="8" fill="#5a6684" fill-opacity=".45"/>
+  <rect x="78" y="208" width="120" height="16" rx="8" fill="#5a6684" fill-opacity=".45"/>
+
+  <!-- step markers in the gutter: amber, green (current), red -->
+  <circle cx="26" cy="69" r="9" fill="#d29922"/>
+  <circle cx="26" cy="137" r="15" fill="#2da44e"/>
+  <circle cx="26" cy="137" r="15" fill="none" stroke="#0b1020" stroke-width="3"/>
+  <circle cx="26" cy="202" r="9" fill="#e5534b"/>
+  <path d="M26 82 V120 M26 154 V191" stroke="#8b949e" stroke-opacity=".55" stroke-width="3" stroke-dasharray="2 6" stroke-linecap="round"/>
+</svg>

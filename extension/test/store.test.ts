@@ -174,10 +174,10 @@ describe("Auto-start and triggers", () => {
     const { player, trigger } = await api();
     await setAutoStart("off");
     publish(watchTour());
-    await trigger.handleUri(vscode.Uri.parse("vscode://agent-tour.agent-tour/start?id=../x"));
+    await trigger.handleUri(vscode.Uri.parse("vscode://SuryanshBVerma.agent-tour/start?id=../x"));
     assert.strictEqual(player.snapshot().status, "idle", `after invalid URI: ${JSON.stringify(player.snapshot())}`);
 
-    await trigger.handleUri(vscode.Uri.parse(`vscode://agent-tour.agent-tour/start?id=${WATCH_ID}`));
+    await trigger.handleUri(vscode.Uri.parse(`vscode://SuryanshBVerma.agent-tour/start?id=${WATCH_ID}`));
     const { store } = await api();
     assert.strictEqual(
       player.snapshot().tourId,
@@ -191,7 +191,7 @@ describe("Auto-start and triggers", () => {
     await setAutoStart("off");
     publish(watchTour());
     // No waiting for the watcher: find() must read the slot directly.
-    await trigger.handleUri(vscode.Uri.parse(`vscode://agent-tour.agent-tour/start?id=${WATCH_ID}`));
+    await trigger.handleUri(vscode.Uri.parse(`vscode://SuryanshBVerma.agent-tour/start?id=${WATCH_ID}`));
     assert.strictEqual(player.snapshot().tourId, WATCH_ID);
   });
 });

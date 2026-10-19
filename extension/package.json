@@ -2,10 +2,16 @@
   "name": "agent-tour",
   "displayName": "Agent Tour",
   "description": "Guided, spotlighted code tours of agent-written changes, played in the real editor.",
-  "version": "0.1.2",
-  "publisher": "agent-tour",
+  "version": "0.2.0",
+  "publisher": "SuryanshBVerma",
+  "preview": true,
   "private": true,
   "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#0b1020",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/SuryanshBVerma/agent-tour.git"
@@ -19,12 +25,16 @@
     "code review",
     "walkthrough",
     "ai agent",
-    "claude code"
+    "copilot",
+    "claude code",
+    "agent skills"
   ],
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
+    "AI",
+    "Chat",
     "Other"
   ],
   "main": "./out/src/extension.js",
@@ -355,6 +365,11 @@
         "view": "agentTour.tours",
         "contents": "No tour for this workspace yet. After a multi-file change, the code-tour skill publishes one and it appears here. Tours are kept in a temp folder, never in your repository.\n[Reload Tours](command:agentTour.reload)"
       }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/code-tour/SKILL.md"
+      }
     ]
   },
   "scripts": {
@@ -366,8 +381,8 @@
     "vscode:prepublish": "npm run compile",
     "build:skill": "node scripts/build-skill.mjs",
     "test:skill": "npm run compile && node --test skill-src/validate-tour.test.mjs",
-    "check:skill": "npm run compile && git diff --exit-code --stat -- ../skill/code-tour/scripts ../skill/code-tour/schema",
-    "sample-tour": "node ../skill/code-tour/scripts/validate-tour.mjs test/fixtures/tours/2026-09-25-rate-limiting.json --root test/fixtures/sample-workspace --publish"
+    "check:skill": "npm run compile && git diff --exit-code --stat -- ../plugins ../.claude-plugin",
+    "sample-tour": "node ../plugins/code-tour/skills/code-tour/scripts/validate-tour.mjs test/fixtures/tours/2026-09-25-rate-limiting.json --root test/fixtures/sample-workspace --publish"
   },
   "dependencies": {
     "ajv": "^8.20.0"

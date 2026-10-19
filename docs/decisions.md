@@ -3,6 +3,30 @@
 Record non-obvious decisions and deviations from `implementation-plan.md`, newest first.
 Include the date, the decision, why it was made, and the alternatives considered.
 
+## 2026-10-19: Distribution (v0.2.0): skill bundled in the extension, plus a plugin
+- **Publisher `SuryanshBVerma`** (personal, matching the GitHub account), so the extension ID
+  is `SuryanshBVerma.agent-tour`. This was the third ID (after `trivium.agent-tour` and
+  `agent-tour.agent-tour`) and should be the last, since it's the ID the Marketplace listing
+  will carry. VS Code matches extension IDs, and the authority of `vscode://` start links,
+  case-insensitively.
+- **The extension contributes the skill** through `contributes.chatSkills`, the official way
+  for an extension to ship Agent Skills to Copilot Chat. One Marketplace install gives the
+  player and the skill. Older VS Code versions ignore the unknown contribution point. The docs
+  don't say which release added `chatSkills`, so whether Copilot loads the bundled skill is a
+  manual check on current VS Code.
+- **One source for the skill, two derived copies.** The skill moved to
+  `plugins/code-tour/skills/code-tour/`, which is both the plugin's skill folder and the
+  source the build copies into `extension/skills/` (git-ignored, packaged in the .vsix). The
+  build also syncs the plugin and marketplace manifest versions with `package.json`, and
+  `check:skill` fails CI if the committed ones are stale.
+- **Plugin for agents outside VS Code.** `.claude-plugin/marketplace.json` at the root makes
+  this repository a marketplace. Claude Code reads it, and Copilot CLI checks `.claude-plugin/`
+  as well. The plugin has both manifest forms: `plugin.json` at the plugin root (Copilot /
+  Agent Plugins) and `.claude-plugin/plugin.json` (Claude). The skill is in `skills/<name>/`,
+  which both formats use.
+- **Not done yet:** publishing jobs (`vsce publish`, `ovsx publish`) in the release workflow,
+  which need Marketplace and Open VSX tokens; bundling the extension with esbuild.
+
 ## 2026-10-15: Skill makes fewer unprompted tours; drafts are written from the terminal
 Captured from edits made directly to an installed copy of the skill (`~/.copilot/skills/code-tour`)
 during use with Copilot.

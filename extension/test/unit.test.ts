@@ -55,16 +55,16 @@ describe("parseStartUri", () => {
   const uri = (s: string) => vscode.Uri.parse(s);
 
   it("returns a valid id", () => {
-    assert.strictEqual(parseStartUri(uri("vscode://agent-tour.agent-tour/start?id=spike")), "spike");
+    assert.strictEqual(parseStartUri(uri("vscode://SuryanshBVerma.agent-tour/start?id=spike")), "spike");
   });
 
   for (const bad of [
-    "vscode://agent-tour.agent-tour/start",
-    "vscode://agent-tour.agent-tour/start?id=",
-    "vscode://agent-tour.agent-tour/start?id=../etc",
-    "vscode://agent-tour.agent-tour/start?id=Upper",
-    "vscode://agent-tour.agent-tour/start?id=a&id=b",
-    "vscode://agent-tour.agent-tour/open?id=spike",
+    "vscode://SuryanshBVerma.agent-tour/start",
+    "vscode://SuryanshBVerma.agent-tour/start?id=",
+    "vscode://SuryanshBVerma.agent-tour/start?id=../etc",
+    "vscode://SuryanshBVerma.agent-tour/start?id=Upper",
+    "vscode://SuryanshBVerma.agent-tour/start?id=a&id=b",
+    "vscode://SuryanshBVerma.agent-tour/open?id=spike",
   ]) {
     it(`rejects ${bad}`, () => assert.strictEqual(parseStartUri(uri(bad)), undefined));
   }

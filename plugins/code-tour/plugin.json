@@ -1,0 +1,16 @@
+{
+  "name": "code-tour",
+  "description": "After a large change, the agent writes a guided tour of it and publishes it to the Agent Tour VS Code extension, which plays it in the editor.",
+  "version": "0.2.0",
+  "author": {
+    "name": "SuryanshBVerma"
+  },
+  "homepage": "https://github.com/SuryanshBVerma/agent-tour",
+  "repository": "https://github.com/SuryanshBVerma/agent-tour",
+  "license": "MIT",
+  "keywords": [
+    "code tour",
+    "code review",
+    "vscode"
+  ]
+}

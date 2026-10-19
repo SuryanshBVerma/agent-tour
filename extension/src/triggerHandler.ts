@@ -12,7 +12,7 @@ const MAX_QUIET_WAIT_MS = 30000;
 
 /**
  * Starts tours from two sources: new or changed tour files (per `agentTour.autoStart`)
- * and `vscode://agent-tour.agent-tour/start?id=<id>` links. Only a regex-validated id is
+ * and `vscode://SuryanshBVerma.agent-tour/start?id=<id>` links. Only a regex-validated id is
  * read from a URI; paths and content never are. Nothing auto-starts in an untrusted
  * workspace.
  */

@@ -31,7 +31,7 @@ export function clearSlot(): void {
 }
 
 export async function api(): Promise<AgentTourApi> {
-  const extension = vscode.extensions.getExtension<AgentTourApi>("agent-tour.agent-tour");
+  const extension = vscode.extensions.getExtension<AgentTourApi>("SuryanshBVerma.agent-tour");
   assert.ok(extension, "extension not found");
   return extension.activate();
 }

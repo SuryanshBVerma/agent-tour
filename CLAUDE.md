@@ -13,7 +13,10 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 ## Layout
 - `extension/`: VS Code extension (TypeScript). `extension/schema/tour.schema.json` is the
   canonical tour contract.
-- `skill/code-tour/`: the agent skill (SKILL.md, validator, examples). Its
+- `plugins/code-tour/`: the agent skill as a plugin for Claude Code and Copilot CLI (listed in
+  `.claude-plugin/marketplace.json`). The skill itself is `plugins/code-tour/skills/code-tour/`
+  (SKILL.md, validator, examples), and the build copies it into the extension, which contributes
+  it to Copilot Chat via `chatSkills`. Its
   `schema/tour.schema.json` is a build-time copy of the extension schema. Never edit the copy.
 - `docs/`: plan and decision log.
 
@@ -40,12 +43,15 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 - Phase 2 (robustness): done. AnchorResolver with relocated, stale and missing steps, the
   TourTree in the Explorer, and Workspace Trust restricted settings are in place. Manual
   checks are in `docs/manual-checks.md`.
-- Phase 3 (skill): done. `skill/code-tour/` holds SKILL.md, the bundled validator
+- Phase 3 (skill): done. `plugins/code-tour/skills/code-tour/` holds SKILL.md, the bundled validator
   `scripts/validate-tour.mjs`, and an example. The validator's source is
   `extension/skill-src/`.
 - v0.1.0 prepared for GitHub (SuryanshBVerma/agent-tour, MIT). Tours live in a per-user temp
   slot (not the repo); the inline card is the default; kinds are colored. CI is
   `.github/workflows/ci.yml` and releases come from `release.yml` on `v*.*.*` tags.
+- v0.2.0: publisher `SuryanshBVerma`; the extension ships the skill via `chatSkills`; the repo
+  is a plugin marketplace for Claude Code and Copilot CLI. Marketplace publishing jobs are
+  not set up yet.
 - Next is Phase 4: dogfooding on real projects.
 
 ## Tour contract (summary)
@@ -62,7 +68,7 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
 - No auto-start in untrusted workspaces. No network access and no telemetry.
 
 ## Conventions
-- Extension ID `agent-tour.agent-tour`. Settings and context keys use the `agentTour.` prefix.
+- Extension ID `SuryanshBVerma.agent-tour`. Settings and context keys use the `agentTour.` prefix.
 - Keep the opacity-dimming hack isolated in `spotlightRenderer.ts` behind a flag, with a
   background-wash fallback.
 - Every decoration must be disposed on step change, file switch, and stop.

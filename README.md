@@ -51,36 +51,57 @@ tour replaces the previous one. Nothing is written to your repository, so there'
 
 ## Install
 
-### 1. The extension
+Requires **VS Code 1.90 or later**.
 
-Requires **VS Code 1.90 or later**. Download [`agent-tour.vsix`](https://github.com/SuryanshBVerma/agent-tour/releases/latest/download/agent-tour.vsix), then:
+### Copilot Chat in VS Code: one install
+
+Install **Agent Tour** from the VS Code Marketplace, or from the command line:
 
 ```bash
-code --install-extension agent-tour.vsix
+code --install-extension SuryanshBVerma.agent-tour
 ```
 
-Reload VS Code afterwards (**Developer: Reload Window**).
+That's all. The extension also gives Copilot Chat the `code-tour` skill, so there's nothing
+to copy. If you copied the skill into `~/.copilot/skills` by hand earlier, delete that copy
+so Copilot doesn't see it twice.
 
 > [!IMPORTANT]
 > `--install-extension` installs into your **Default** profile only. If your project opens in
 > another VS Code profile, add `--profile "<name>"`. Otherwise, start links fail with
-> *"The extension 'agent-tour.agent-tour' cannot be installed because it was not found"*.
+> *"The extension 'SuryanshBVerma.agent-tour' cannot be installed because it was not found"*.
 
-### 2. The skill (Claude Code)
+### Claude Code or Copilot CLI: add the plugin
 
-Unpack [`code-tour-skill.zip`](https://github.com/SuryanshBVerma/agent-tour/releases/latest/download/code-tour-skill.zip)
-into your Claude Code skills folder, for all projects:
+Install the extension as above (it plays the tours), then add the skill as a plugin from this
+repository.
+
+Claude Code, inside a session:
+
+```
+/plugin marketplace add SuryanshBVerma/agent-tour
+/plugin install code-tour@agent-tour
+```
+
+Copilot CLI:
 
 ```bash
-mkdir -p ~/.claude/skills && unzip -o code-tour-skill.zip -d ~/.claude/skills/
+copilot plugin marketplace add SuryanshBVerma/agent-tour
 ```
 
-```powershell
-Expand-Archive code-tour-skill.zip -DestinationPath "$env:USERPROFILE\.claude\skills" -Force
+```bash
+copilot plugin install code-tour@agent-tour
 ```
 
-Or unpack it into `<project>/.claude/skills/` to share it with a team through the repository.
-The validator needs only **Node.js 18 or later**.
+The skill's validator needs **Node.js 18 or later** on your `PATH`.
+
+### Without a marketplace
+
+Every [release](https://github.com/SuryanshBVerma/agent-tour/releases/latest) also has
+[`agent-tour.vsix`](https://github.com/SuryanshBVerma/agent-tour/releases/latest/download/agent-tour.vsix)
+(install with `code --install-extension agent-tour.vsix`) and
+[`code-tour-skill.zip`](https://github.com/SuryanshBVerma/agent-tour/releases/latest/download/code-tour-skill.zip),
+which you can unpack into any agent's skills folder (`~/.claude/skills`, `~/.copilot/skills` or
+a project's `.claude/skills`).
 
 ## Use
 
@@ -168,10 +189,11 @@ workspace with a sample tour.
 | `extension/src/` | The extension: player, spotlight, cards, store, anchor resolver, tree |
 | `extension/schema/tour.schema.json` | The tour format (canonical) |
 | `extension/skill-src/` | Source of the skill's validator CLI |
-| `skill/code-tour/` | The skill as shipped: `SKILL.md`, bundled validator, schema copy, example |
+| `plugins/code-tour/` | The skill as a plugin for Claude Code and Copilot CLI; the skill itself is in `skills/code-tour/` (`SKILL.md`, bundled validator, schema copy, examples) |
+| `.claude-plugin/marketplace.json` | The plugin marketplace this repository serves |
 | `docs/` | Implementation plan, decision log, manual test checklists |
 
-`skill/code-tour/scripts/validate-tour.mjs` is **generated**. `npm run compile` rebuilds it, and
+`plugins/code-tour/skills/code-tour/scripts/validate-tour.mjs` is **generated**. `npm run compile` rebuilds it, and
 CI fails if the committed copy is stale (`npm run check:skill`).
 
 ### Releasing

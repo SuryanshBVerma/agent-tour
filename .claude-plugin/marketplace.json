@@ -1,0 +1,19 @@
+{
+  "name": "agent-tour",
+  "description": "Agent Tour: guided, spotlighted code tours of agent-written changes in VS Code.",
+  "owner": {
+    "name": "SuryanshBVerma"
+  },
+  "metadata": {
+    "description": "The code-tour skill for Agent Tour.",
+    "version": "0.2.0"
+  },
+  "plugins": [
+    {
+      "name": "code-tour",
+      "source": "./plugins/code-tour",
+      "description": "After a large change, the agent writes a guided tour of it and publishes it to the Agent Tour VS Code extension, which plays it in the editor.",
+      "version": "0.2.0"
+    }
+  ]
+}

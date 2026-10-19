@@ -286,12 +286,12 @@ node "<this skill's folder>/scripts/validate-tour.mjs" "<draft path>" --publish
   made on your own initiative after a change.
 - Only if the user asked for the tour itself ("walk me through it", "give me a tour"),
   start it right away:
-  `code --open-url "vscode://agent-tour.agent-tour/start?id=<id>"`
+  `code --open-url "vscode://SuryanshBVerma.agent-tour/start?id=<id>"`
 - Tell the user in one or two lines, naming the risks you flagged. For example: *"I published
   a 7-step tour of the change. Start it from the notification, or from Agent Tours in the
   Explorer. It flags two risks: the cache TTL and the retry
   loop. Press Alt+D on any step to see it as a diff against the base."*
 - If the user says nothing happened: tours need the **Agent Tour** VS Code extension
-  (`agent-tour.agent-tour`) installed in the VS Code profile that project uses, with the same
+  (`SuryanshBVerma.agent-tour`) installed in the VS Code profile that project uses, with the same
   folder open that you used as the workspace root. They can also run **Agent Tour: Start
   Tour...** from the Command Palette, or reload the window.

@@ -46,7 +46,7 @@ Automated tests: `cd extension && npm test` (downloads VS Code 1.90.0 into
 Command for check 10:
 
 ```bash
-code --open-url "vscode://agent-tour.agent-tour/start?id=2026-09-25-rate-limiting"
+code --open-url "vscode://SuryanshBVerma.agent-tour/start?id=2026-09-25-rate-limiting"
 ```
 
 Record how long delivery takes (compare the log timestamp with when you pressed Enter),

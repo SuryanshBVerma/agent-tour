@@ -3,9 +3,24 @@
 All notable changes to this project are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-19
+
+### Added
+- **The skill ships inside the extension.** Installing Agent Tour gives GitHub Copilot Chat
+  the `code-tour` skill through the `chatSkills` contribution point; no manual copy needed.
+- **Plugin for Claude Code and Copilot CLI.** This repository is now a plugin marketplace
+  (`.claude-plugin/marketplace.json`) serving the `code-tour` plugin:
+  `/plugin marketplace add SuryanshBVerma/agent-tour`, then install `code-tour@agent-tour`.
+- Marketplace listing: icon, banner color, AI and Chat categories, preview flag, and a
+  listing page with a preview image and the changelog.
 
 ### Changed
+- **New extension ID: `SuryanshBVerma.agent-tour`** (publisher `SuryanshBVerma`, matching the
+  GitHub account). VS Code treats it as a different extension: uninstall
+  `agent-tour.agent-tour` first. Start links are now
+  `vscode://SuryanshBVerma.agent-tour/start?id=<id>`.
+- The skill moved from `skill/code-tour/` to `plugins/code-tour/skills/code-tour/`; the
+  release's `code-tour-skill.zip` is unchanged.
 - The skill makes unprompted tours only after a large, complex change the agent drove
   itself (more than five non-generated files with real logic), never for direct, scoped
   requests, and never asks whether you want one. Asking for a tour still always works.
@@ -67,6 +82,7 @@ First release.
   validation checks the schema, files, ranges, anchors, overlaps and quality; `--publish`
   replaces the workspace's tour atomically.
 
+[0.2.0]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.2.0
 [0.1.2]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.1.2
 [0.1.1]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.1.1
 [0.1.0]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.1.0

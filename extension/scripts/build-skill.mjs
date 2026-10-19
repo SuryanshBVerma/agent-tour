@@ -1,14 +1,25 @@
-// Builds the skill's generated files from the extension sources:
-//   skill/code-tour/scripts/validate-tour.mjs  (bundled validator, runs with plain node)
-//   skill/code-tour/schema/tour.schema.json    (copy of the canonical schema)
-// Run with `npm run build:skill`. Never edit the outputs by hand.
+// Builds everything derived from the extension sources. Run with `npm run build:skill`
+// (`npm run compile` runs it too). Never edit the outputs by hand.
+//
+// Committed outputs (CI fails if they are stale, see `npm run check:skill`):
+//   plugins/code-tour/skills/code-tour/scripts/validate-tour.mjs  bundled validator, plain node
+//   plugins/code-tour/skills/code-tour/schema/tour.schema.json    copy of the canonical schema
+//   plugins/code-tour/plugin.json, plugins/code-tour/.claude-plugin/plugin.json,
+//   .claude-plugin/marketplace.json                               "version" synced from package.json
+//
+// Git-ignored outputs, packaged into the .vsix:
+//   extension/skills/code-tour/  the skill, contributed to Copilot Chat via `chatSkills`
+//   extension/CHANGELOG.md       shown on the Marketplace "Changelog" tab
 import { build } from "esbuild";
-import { copyFileSync, mkdirSync } from "fs";
+import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 const extensionDir = join(dirname(fileURLToPath(import.meta.url)), "..");
-const skillDir = join(extensionDir, "..", "skill", "code-tour");
+const repo = join(extensionDir, "..");
+const pluginDir = join(repo, "plugins", "code-tour");
+const skillDir = join(pluginDir, "skills", "code-tour");
+const version = JSON.parse(readFileSync(join(extensionDir, "package.json"), "utf8")).version;
 
 mkdirSync(join(skillDir, "scripts"), { recursive: true });
 mkdirSync(join(skillDir, "schema"), { recursive: true });
@@ -26,6 +37,28 @@ await build({
   },
   logLevel: "warning",
 });
-
 copyFileSync(join(extensionDir, "schema", "tour.schema.json"), join(skillDir, "schema", "tour.schema.json"));
-console.log(`Built ${join(skillDir, "scripts", "validate-tour.mjs")}`);
+
+// Plugin and marketplace manifests carry the same version as the extension.
+function syncVersion(file, apply) {
+  const before = readFileSync(file, "utf8");
+  const json = JSON.parse(before);
+  apply(json);
+  const after = `${JSON.stringify(json, null, 2)}\n`;
+  if (after !== before) writeFileSync(file, after);
+}
+for (const manifest of [join(pluginDir, "plugin.json"), join(pluginDir, ".claude-plugin", "plugin.json")]) {
+  syncVersion(manifest, (json) => { json.version = version; });
+}
+syncVersion(join(repo, ".claude-plugin", "marketplace.json"), (json) => {
+  json.metadata.version = version;
+  for (const plugin of json.plugins) plugin.version = version;
+});
+
+// The extension ships its own copy of the skill (see contributes.chatSkills).
+const bundled = join(extensionDir, "skills", "code-tour");
+rmSync(bundled, { recursive: true, force: true });
+cpSync(skillDir, bundled, { recursive: true });
+copyFileSync(join(repo, "CHANGELOG.md"), join(extensionDir, "CHANGELOG.md"));
+
+console.log(`Built the code-tour skill ${version} and copied it into the extension`);

@@ -10,7 +10,7 @@ import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const validator = join(here, "..", "..", "skill", "code-tour", "scripts", "validate-tour.mjs");
+const validator = join(here, "..", "..", "plugins", "code-tour", "skills", "code-tour", "scripts", "validate-tour.mjs");
 const fixture = join(here, "..", "test", "fixtures", "sample-workspace");
 const sample = JSON.parse(readFileSync(join(here, "..", "test", "fixtures", "tours", "2026-09-25-rate-limiting.json"), "utf8"));
 // The tsc output of the same module the bundle contains, to compute expected paths.
@@ -245,7 +245,7 @@ describe("validate-tour.mjs", () => {
 
   it("ships a schema identical to the extension's canonical schema", () => {
     const canonical = readFileSync(join(here, "..", "schema", "tour.schema.json"), "utf8");
-    const copy = readFileSync(join(here, "..", "..", "skill", "code-tour", "schema", "tour.schema.json"), "utf8");
+    const copy = readFileSync(join(here, "..", "..", "plugins", "code-tour", "skills", "code-tour", "schema", "tour.schema.json"), "utf8");
     assert.equal(copy, canonical);
   });
 });

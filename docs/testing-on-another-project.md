@@ -14,7 +14,7 @@ code --install-extension D:/Projects/code-tour/extension/agent-tour.vsix
 Reload VS Code afterwards. To remove it later:
 
 ```bash
-code --uninstall-extension agent-tour.agent-tour
+code --uninstall-extension SuryanshBVerma.agent-tour
 ```
 
 To pick up changes made here, rebuild the package and reinstall it (`--force` overwrites
@@ -23,7 +23,7 @@ the same version).
 **VS Code profiles:** `--install-extension` installs into the **Default** profile only.
 If the project opens in another profile (the gear icon at the bottom left shows which),
 install into that profile too, e.g. `--profile "Work"`. Otherwise start links fail with
-*"The extension 'agent-tour.agent-tour' cannot be installed because it was not found"*.
+*"The extension 'SuryanshBVerma.agent-tour' cannot be installed because it was not found"*.
 
 ## 2. Get a tour into the project
 Tours never go into the repository. The skill publishes each tour to a per-user temp folder
@@ -35,7 +35,7 @@ Install the `code-tour` skill so Claude Code writes and validates tours itself. 
 - **For all your projects** (user level):
 
 ```bash
-mkdir -p ~/.claude/skills && cp -r D:/Projects/code-tour/skill/code-tour ~/.claude/skills/
+mkdir -p ~/.claude/skills && cp -r D:/Projects/code-tour/plugins/code-tour/skills/code-tour ~/.claude/skills/
 ```
 
 - **For one project** (can be committed so the team gets it): copy the folder to
@@ -55,7 +55,7 @@ file in VS Code. Invalid files show up in **Explorer → Agent Tours** with thei
 - **Auto-start:** with the default `agentTour.autoStart: "prompt"`, a "Start Tour"
   notification appears when the file is written.
 - **Manually:** run **Agent Tour: Start Tour...**, or click a step in **Explorer → Agent Tours**.
-- **By link:** `code --open-url "vscode://agent-tour.agent-tour/start?id=<id>"`. This is Phase 0
+- **By link:** `code --open-url "vscode://SuryanshBVerma.agent-tour/start?id=<id>"`. This is Phase 0
   manual check 10; the installed extension is the setup that check is meant for.
 
 Keys while a tour plays: `Alt+]` next, `Alt+[` previous, `Alt+H` show the card again, `Esc` stop.

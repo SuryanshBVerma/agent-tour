@@ -14,7 +14,7 @@ navigation.
 3. The agent runs the skill's validator script and fixes errors until it passes.
 4. The agent starts the tour: the extension's file watcher auto-starts it (setting
    controlled), or the agent runs
-   `code --open-url "vscode://agent-tour.agent-tour/start?id=<id>"`.
+   `code --open-url "vscode://SuryanshBVerma.agent-tour/start?id=<id>"`.
    (Verify in Phase 0 that `code --open-url` reliably reaches the URI handler on the
    team's OSes; if not, the file watcher is the primary path.)
 5. The extension opens the first file, applies the spotlight, and shows the step card.

@@ -10,7 +10,7 @@
  *       Validate, then (only if valid) atomically replace the workspace's current tour.
  *
  * <workspace> defaults to the current directory and must be the folder open in VS Code
- * (normally the git top level). Bundled into skill/code-tour/scripts/validate-tour.mjs by
+ * (normally the git top level). Bundled into plugins/code-tour/skills/code-tour/scripts/validate-tour.mjs by
  * `npm run build:skill`; runs with plain node >= 18. Same schema and rules as the extension.
  * Exit codes: 0 valid (warnings allowed), 1 invalid, 2 usage or I/O error.
  */
