@@ -5,14 +5,16 @@
 <p align="center">
   <a href="https://github.com/SuryanshBVerma/agent-tour/actions/workflows/ci.yml"><img src="https://github.com/SuryanshBVerma/agent-tour/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/SuryanshBVerma/agent-tour/releases/latest"><img src="https://img.shields.io/github/v/release/SuryanshBVerma/agent-tour?label=release" alt="Latest release"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=SuryanshBVerma.agent-tour"><img src="https://img.shields.io/visual-studio-marketplace/v/SuryanshBVerma.agent-tour?label=VS%20Code%20Marketplace" alt="VS Code Marketplace version"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=SuryanshBVerma.agent-tour"><img src="https://img.shields.io/visual-studio-marketplace/i/SuryanshBVerma.agent-tour" alt="Installs"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.90-007acc" alt="VS Code 1.90 or later">
 </p>
 
 <p align="center">
-  <a href="https://github.com/SuryanshBVerma/agent-tour/releases/latest/download/agent-tour.vsix"><b>Download the extension (.vsix)</b></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=SuryanshBVerma.agent-tour"><b>Install from the VS Code Marketplace</b></a>
   ·
-  <a href="https://github.com/SuryanshBVerma/agent-tour/releases/latest/download/code-tour-skill.zip"><b>Download the skill</b></a>
+  <a href="https://github.com/SuryanshBVerma/agent-tour/releases/latest"><b>Latest release (.vsix + skill)</b></a>
 </p>
 
 ---
@@ -26,9 +28,10 @@ Agent Tour has two parts:
 
 - **The VS Code extension** plays tours: it spotlights each step, shows the card, and gives you
   keyboard navigation and a sidebar list of steps.
-- **The `code-tour` skill** teaches Claude Code to write good tours. It covers ordering, the
-  What/Why/Watch-for pattern and flagging risks, and ships a validator that checks every tour
-  against the real files before you ever see it.
+- **The `code-tour` skill** teaches your agent (GitHub Copilot, Claude Code or Copilot CLI) to
+  write good tours. It covers ordering, the What/Why/Watch-for pattern and flagging risks, and
+  ships a validator that checks every tour against the real files before you ever see it. For
+  Copilot in VS Code the skill comes inside the extension.
 
 ## How it works
 
@@ -55,7 +58,8 @@ Requires **VS Code 1.90 or later**.
 
 ### Copilot Chat in VS Code: one install
 
-Install **Agent Tour** from the VS Code Marketplace, or from the command line:
+Install **[Agent Tour - Review AI Changes](https://marketplace.visualstudio.com/items?itemName=SuryanshBVerma.agent-tour)** from the VS Code Marketplace (search
+"Agent Tour" in the Extensions view), or from the command line:
 
 ```bash
 code --install-extension SuryanshBVerma.agent-tour
@@ -118,10 +122,11 @@ Tours**.
 | `Alt+]` | Next step |
 | `Alt+[` | Previous step |
 | `Alt+H` | Show the step card again |
+| `Alt+D` | Show the step as a side-by-side diff against the change's starting point (toggle) |
 | `Esc` | Stop the tour |
 
 The card's title bar and the status bar also have ‹ › × buttons. Commands: **Agent Tour: Start
-Tour...**, **Reload Tours**, **Stop Tour**.
+Tour...**, **Toggle Side-by-Side Diff**, **Reload Tours**, **Stop Tour**.
 
 ### What the colors mean
 
@@ -198,20 +203,25 @@ CI fails if the committed copy is stale (`npm run check:skill`).
 
 ### Releasing
 
-1. Update `version` in `extension/package.json` and add a section to [CHANGELOG.md](CHANGELOG.md).
-2. Commit, then tag and push:
+1. Update `version` in `extension/package.json` and turn the `Unreleased` section of
+   [CHANGELOG.md](CHANGELOG.md) into a section for that version.
+2. Commit, push `main`, then tag and push the tag (for example `v0.3.0`):
    ```bash
-   git tag v0.1.0 && git push origin v0.1.0
+   git tag vX.Y.Z && git push origin vX.Y.Z
    ```
-3. The [release workflow](.github/workflows/release.yml) runs the tests, builds
-   `agent-tour.vsix` and `code-tour-skill.zip`, and attaches them to a GitHub Release.
+3. The [release workflow](.github/workflows/release.yml) checks the tag matches `package.json`,
+   runs the tests, builds `agent-tour.vsix` and `code-tour-skill.zip`, and attaches them to a
+   GitHub Release with that version's changelog section as notes.
+4. Upload the release's `agent-tour.vsix` to the
+   [Marketplace](https://marketplace.visualstudio.com/manage/publishers/SuryanshBVerma). This step
+   is manual for now. The plugin needs no step: Claude Code and Copilot CLI read it from `main`.
 
-Every push and pull request also runs [CI](.github/workflows/ci.yml) on Ubuntu and Windows and
-uploads the built `.vsix` as a workflow artifact.
+Every push and pull request also runs [CI](.github/workflows/ci.yml) on Ubuntu and Windows, against
+VS Code 1.90 and the latest stable release, and uploads the built `.vsix` as a workflow artifact.
 
 ## Status and limits
 
-This is **v0.1.0**, a working proof of concept. Known limits:
+Agent Tour is young (0.x) and still being refined on real projects. Known limits:
 
 - The agent's workspace root must be the folder open in VS Code. Opening a subfolder of the
   repository won't find the tour.
@@ -220,7 +230,7 @@ This is **v0.1.0**, a working proof of concept. Known limits:
   switch `agentTour.dimMode` to `wash`.
 - The first time an inline card appears in a session, VS Code may open the Comments panel
   (setting `comments.openView`).
-- Not published to the VS Code Marketplace; install from the `.vsix`.
+- The skill's validator needs Node.js 18 or later on your `PATH`.
 
 ## License
 

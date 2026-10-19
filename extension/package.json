@@ -4,7 +4,6 @@
   "description": "Guided, spotlighted code tours of agent-written changes, played in the real editor.",
   "version": "0.2.1",
   "publisher": "SuryanshBVerma",
-  "preview": true,
   "private": true,
   "license": "MIT",
   "icon": "images/icon.png",

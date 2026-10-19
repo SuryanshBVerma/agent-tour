@@ -1,71 +1,63 @@
-# Testing Agent Tour on Another Project
+# Testing an Unreleased Build on Another Project
 
-This guide is for trying the extension and the `code-tour` skill on a real repository.
+Users install Agent Tour from the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=SuryanshBVerma.agent-tour)
+(see the README). This guide is for trying a **local build** of this repository on a real
+project before it's released.
 
-## 1. Build and install
+## 1. Build and install the extension
 ```bash
 cd D:/Projects/code-tour/extension && npm run package
 ```
 
 ```bash
-code --install-extension D:/Projects/code-tour/extension/agent-tour.vsix
+code --install-extension D:/Projects/code-tour/extension/agent-tour.vsix --force
 ```
 
-Reload VS Code afterwards. To remove it later:
+`--force` replaces whatever version is installed, including the Marketplace one; reinstall
+from the Marketplace afterwards to go back. Reload VS Code (**Developer: Reload Window**).
 
-```bash
-code --uninstall-extension SuryanshBVerma.agent-tour
-```
-
-To pick up changes made here, rebuild the package and reinstall it (`--force` overwrites
-the same version).
+The build includes the `code-tour` skill, so **Copilot Chat needs no other setup**. If you
+ever copied the skill into `~/.copilot/skills/` by hand, delete that copy so Copilot doesn't
+see the skill twice. Check it's loaded in Copilot's **Configure Skills** list.
 
 **VS Code profiles:** `--install-extension` installs into the **Default** profile only.
 If the project opens in another profile (the gear icon at the bottom left shows which),
-install into that profile too, e.g. `--profile "Work"`. Otherwise start links fail with
+add `--profile "<name>"`. Otherwise start links fail with
 *"The extension 'SuryanshBVerma.agent-tour' cannot be installed because it was not found"*.
 
-## 2. Get a tour into the project
-Tours never go into the repository. The skill publishes each tour to a per-user temp folder
-(`<temp>/agent-tours-<user>/`) with one slot per workspace, and a new tour replaces the
-previous one. If an earlier version left a `.agent-tours/` folder in your project, delete it.
+## 2. Claude Code or Copilot CLI: load the plugin from this folder
+Register this repository folder as a local plugin marketplace, then install the plugin.
+Claude Code reads the files directly, so edits here take effect in the next session (or
+after `/reload-plugins`):
 
-Install the `code-tour` skill so Claude Code writes and validates tours itself. Choose one:
-
-- **For all your projects** (user level):
-
-```bash
-mkdir -p ~/.claude/skills && cp -r D:/Projects/code-tour/plugins/code-tour/skills/code-tour ~/.claude/skills/
+```
+/plugin marketplace add D:/Projects/code-tour
+/plugin install code-tour@agent-tour
 ```
 
-- **For one project** (can be committed so the team gets it): copy the folder to
-  `<project>/.claude/skills/code-tour/` instead.
+Copilot CLI: `copilot plugin marketplace add D:/Projects/code-tour`, then install
+`code-tour@agent-tour`.
 
-To update it later, copy it again. The folder is self-contained (`SKILL.md`, the bundled
-validator, the schema and an example), and the validator needs only `node` >= 18.
+## 3. Get a tour
+After a large multi-file change the agent drove itself, it publishes a tour on its own. For
+anything else, ask: *"give me a tour of what you changed"*. Tours never go into the repository:
+the skill publishes each one to a per-user temp folder (`<temp>/agent-tours-<user>/`), one slot
+per workspace, and a new tour replaces the previous one.
 
-Then, in the other project, either let Claude Code use it after a multi-file change, or ask
-for one directly ("give me a tour of what you changed"). Asking directly also starts it,
-via `code --open-url`.
-
-The installed extension gives schema completion and error squiggles when you open the tour
-file in VS Code. Invalid files show up in **Explorer → Agent Tours** with their errors.
-
-## 3. Play it
-- **Auto-start:** with the default `agentTour.autoStart: "prompt"`, a "Start Tour"
-  notification appears when the file is written.
+## 4. Play it
+- **Auto-start:** with the default `agentTour.autoStart: "prompt"`, a **Start Tour**
+  notification appears when the tour is published.
 - **Manually:** run **Agent Tour: Start Tour...**, or click a step in **Explorer → Agent Tours**.
-- **By link:** `code --open-url "vscode://SuryanshBVerma.agent-tour/start?id=<id>"`. This is Phase 0
-  manual check 10; the installed extension is the setup that check is meant for.
+- **By link:** `code --open-url "vscode://SuryanshBVerma.agent-tour/start?id=<id>"`.
 
-Keys while a tour plays: `Alt+]` next, `Alt+[` previous, `Alt+H` show the card again, `Esc` stop.
-The log is in **Output → Agent Tour**.
+Keys while a tour plays: `Alt+]` next, `Alt+[` previous, `Alt+H` show the card again, `Alt+D`
+side-by-side diff, `Esc` stop. The log is in **Output → Agent Tour**.
 
-## 4. What to note
+## 5. What to note
 - Did the tour order and descriptions help, compared with reading the diff?
 - Any step highlighting the wrong lines, marked stale, or reported as a missing file?
-- Card problems: not appearing, closing too easily, crowded by language hovers.
+- Did the agent make a tour when it shouldn't have, or skip one when it should?
+- Card problems: not appearing, closing too easily.
 - Dimming: readable in your theme? (Try `agentTour.dimMode: "wash"` if not.)
 - Keybinding conflicts in your setup.
-
-Notes like these feed straight into Phase 3, which is mostly about tour quality.

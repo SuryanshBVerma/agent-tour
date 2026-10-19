@@ -3,6 +3,13 @@
 All notable changes to this project are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The Marketplace listing no longer carries the **Preview** badge.
+- README, the testing guide and the skill's hand-over now point to the Marketplace listing
+  (**Agent Tour - Review AI Changes**), document `Alt+D` and the current release steps.
+
 ## [0.2.1] - 2026-10-19
 
 ### Changed

@@ -40,3 +40,10 @@ Run these in a real Git repository (the sample workspace is not one), with a tou
 | 19 | An added file (no version at `baseRef`) falls back to the editor with one notice | Tour a newly added file, press Alt+D | |
 | 20 | A non-repository workspace falls back with one notice and stays navigable | Open a folder that is not a Git repo, press Alt+D | |
 
+## v0.2 additions (Marketplace install, bundled skill, plugin)
+
+| # | Check | How | Result |
+|---|---|---|---|
+| 21 | The Marketplace install brings the skill: `code-tour` is listed in Copilot's **Configure Skills** | Install from the Marketplace in a clean profile with no manual skill copies | |
+| 22 | Copilot uses the bundled skill end to end (validator runs from the extension's folder, tour publishes and starts) | Ask Copilot Chat "give me a tour of what you changed" after a multi-file change | |
+| 23 | The Claude Code plugin installs and its skill runs | `/plugin marketplace add SuryanshBVerma/agent-tour`, `/plugin install code-tour@agent-tour`, then ask for a tour | |

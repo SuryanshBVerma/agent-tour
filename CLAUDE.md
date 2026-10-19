@@ -50,8 +50,11 @@ Log non-obvious decisions and deviations from the plan in `docs/decisions.md`.
   slot (not the repo); the inline card is the default; kinds are colored. CI is
   `.github/workflows/ci.yml` and releases come from `release.yml` on `v*.*.*` tags.
 - v0.2.0: publisher `SuryanshBVerma`; the extension ships the skill via `chatSkills`; the repo
-  is a plugin marketplace for Claude Code and Copilot CLI. Marketplace publishing jobs are
-  not set up yet.
+  is a plugin marketplace for Claude Code and Copilot CLI.
+- v0.2.1 is live on the VS Code Marketplace as **Agent Tour - Review AI Changes** ("Agent Tour"
+  was taken), uploaded by hand from the GitHub Release. Automated Marketplace publishing is
+  not set up yet. The `preview` flag was removed after 0.2.1 and takes effect in the next
+  release.
 - Next is Phase 4: dogfooding on real projects.
 
 ## Tour contract (summary)

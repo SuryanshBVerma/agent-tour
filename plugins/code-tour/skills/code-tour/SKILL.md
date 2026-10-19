@@ -291,7 +291,8 @@ node "<this skill's folder>/scripts/validate-tour.mjs" "<draft path>" --publish
   a 7-step tour of the change. Start it from the notification, or from Agent Tours in the
   Explorer. It flags two risks: the cache TTL and the retry
   loop. Press Alt+D on any step to see it as a diff against the base."*
-- If the user says nothing happened: tours need the **Agent Tour** VS Code extension
-  (`SuryanshBVerma.agent-tour`) installed in the VS Code profile that project uses, with the same
-  folder open that you used as the workspace root. They can also run **Agent Tour: Start
-  Tour...** from the Command Palette, or reload the window.
+- If the user says nothing happened: tours need the **Agent Tour - Review AI Changes** VS Code
+  extension (`SuryanshBVerma.agent-tour`, free on the VS Code Marketplace) installed in the VS
+  Code profile that project uses, with the same folder open that you used as the workspace
+  root. They can also run **Agent Tour: Start Tour...** from the Command Palette, or reload
+  the window.
