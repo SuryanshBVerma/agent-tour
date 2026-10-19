@@ -1,7 +1,7 @@
 {
   "name": "code-tour",
   "description": "After a large change, the agent writes a guided tour of it and publishes it to the Agent Tour VS Code extension, which plays it in the editor.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "SuryanshBVerma"
   },

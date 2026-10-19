@@ -3,6 +3,13 @@
 All notable changes to this project are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-10-19
+
+### Changed
+- Marketplace display name is now **Agent Tour - Review AI Changes**, because "Agent Tour" is
+  already taken on the Marketplace. The extension ID (`SuryanshBVerma.agent-tour`), commands
+  and settings are unchanged.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added
@@ -82,6 +89,7 @@ First release.
   validation checks the schema, files, ranges, anchors, overlaps and quality; `--publish`
   replaces the workspace's tour atomically.
 
+[0.2.1]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.2.1
 [0.2.0]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.2.0
 [0.1.2]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.1.2
 [0.1.1]: https://github.com/SuryanshBVerma/agent-tour/releases/tag/v0.1.1
