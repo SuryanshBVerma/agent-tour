@@ -45,7 +45,7 @@ jobs:
 
       - name: Zip the skill
         working-directory: plugins/code-tour/skills
-        run: zip -r ../extension/code-tour-skill.zip code-tour
+        run: zip -r "$GITHUB_WORKSPACE/extension/code-tour-skill.zip" code-tour
 
       - name: Release notes from CHANGELOG.md
         env:
